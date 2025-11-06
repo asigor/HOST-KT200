@@ -1,0 +1,159 @@
+🔄 KROK 1: /weblm/activation.php (pierwszy raz)
+📤 KLIENT → SERWER
+httpGET /weblm/activation.php?code=HA38-KOQS-H44K&hwid=ZUFhTUtZbGUzcUg3Q0Z2aXJ0WkhUbXFJa2xnX1pJMGZja1JaQjQ3WXpRUQ%3D%3D&hash=JGan4XScCoqC8HsolL8uUs7kCj0%3D HTTP/1.1
+Host: kt.tuner-tools.com
+User-Agent: KT200II/20230327
+Connection: keep-alive
+📥 SERWER → KLIENT
+httpHTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 24 Oct 2025 14:30:00 GMT
+Content-Type: text/html; charset=UTF-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+
+15b
+OK
+JGan4XScCoqC8HsolL8uUs7kCj0=
+0
+Wyjaśnienie:
+
+15b = 347 w hex (długość chunka)
+OK\n + base64 block
+0 = koniec chunków
+
+
+🔄 KROK 2: /handshake.php
+📤 KLIENT → SERWER
+httpGET /handshake.php?id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&len=45&name=d0hEeFhaLVVNNENZY2FHeU1DSF9GWEFYNDNVR2tJTk9hUXhiZEMwbjdwRmpBYUc2cWlqbmNoNS1qOVdJdURHbGhvbnV3OG8wNXVlbmZMd1lqRWZremhXUVg&vers=20230327&type=KT200 HTTP/1.1
+Host: kt.tuner-tools.com
+User-Agent: KT200II/20230327
+Connection: keep-alive
+📥 SERWER → KLIENT
+httpHTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 24 Oct 2025 14:30:01 GMT
+Content-Type: text/html; charset=UTF-8
+Content-Length: 2
+Connection: keep-alive
+
+OK
+Wyjaśnienie:
+
+Prosty OK bez chunked encoding
+Content-Length: 2 (O + K)
+
+
+🔄 KROK 3: /init2024.php
+📤 KLIENT → SERWER
+httpGET /init2024.php?name=wHDxXZ-UM4CYcaGyMCH_FXAX73UGkINOaQxbdC0n7pFjAaG6qijnch5-j9WIuDGlhonuw8o05uenfLwYjEfkzhWQX&id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&len=45 HTTP/1.1
+Host: kt.tuner-tools.com
+User-Agent: KT200II/20230327
+Connection: keep-alive
+📥 SERWER → KLIENT
+httpHTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 24 Oct 2025 14:30:02 GMT
+Content-Type: text/html; charset=UTF-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+
+49
+rCIQmkUf-79006b747d6b9022-37860030563130504428||44
+0
+Wyjaśnienie:
+
+49 = 73 w hex (długość blob)
+Format: serial-guid-timestamp||len
+
+
+🔄 KROK 4: /weblm/activation.php (drugi raz)
+📤 KLIENT → SERWER
+httpGET /weblm/activation.php?code=AB12-CD34-EF56&hwid=ZUFhTUtZbGUzcUg3Q0Z2aXJ0WkhUbXFJa2xnX1pJMGZja1JaQjQ3WXpRUQ%3D%3D&hash=9k3jKl2mNp4qRs5tUv6wXy7zA8bC9dE0f%3D HTTP/1.1
+Host: kt.tuner-tools.com
+User-Agent: KT200II/20230327
+Connection: keep-alive
+📥 SERWER → KLIENT
+httpHTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 24 Oct 2025 14:30:03 GMT
+Content-Type: text/html; charset=UTF-8
+Transfer-Encoding: chunked
+Connection: keep-alive
+Vary: Accept-Encoding
+
+15b
+OK
+9k3jKl2mNp4qRs5tUv6wXy7zA8bC9dE0f=
+0
+Wyjaśnienie:
+
+Taka sama struktura jak activation #1
+Inny code parametr (losowy)
+
+
+🔄 KROK 5: /chatgpt.php
+📤 KLIENT → SERWER
+httpGET /chatgpt.php?name=M-FAKE-SESSION-ID-12345&tag=analyze HTTP/1.1
+Host: kt.tuner-tools.com
+User-Agent: KT200II/20230327
+Connection: keep-alive
+📥 SERWER → KLIENT
+httpHTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 24 Oct 2025 14:30:04 GMT
+Content-Type: text/html; charset=UTF-8
+Content-Length: 41
+Connection: keep-alive
+
+fdea43ddb9bc9d879d2a49ad9dc79bce1f1dc6b4
+Wyjaśnienie:
+
+SHA1 hash (40 znaków hex + newline)
+Brak chunked encoding
+
+
+🔄 KROK 6: /comm2024.php
+📤 KLIENT → SERWER
+httpGET /comm2024.php?name=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&tick=7 HTTP/1.1
+Host: kt.tuner-tools.com
+User-Agent: KT200II/20230327
+Connection: keep-alive
+📥 SERWER → KLIENT
+httpHTTP/1.1 200 OK
+Server: nginx
+Date: Fri, 24 Oct 2025 14:30:05 GMT
+Content-Type: text/html; charset=UTF-8
+Content-Length: 345
+Connection: keep-alive
+
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+```
+
+**Wyjaśnienie:**
+- Blob 344 znaków 'A' + newline
+- Content-Length: 345 (344 + 1)
+
+---
+
+## 📊 **PODSUMOWANIE SEKWENCJI:**
+```
+[14:30:00] → /weblm/activation.php  (stage 1)
+[14:30:00] ← 15b\r\nOK\n{HMAC}\r\n0\r\n
+
+[14:30:01] → /handshake.php
+[14:30:01] ← OK
+
+[14:30:02] → /init2024.php
+[14:30:02] ← 49\r\n{BLOB}\r\n0\r\n
+
+[14:30:03] → /weblm/activation.php  (stage 2)
+[14:30:03] ← 15b\r\nOK\n{HMAC}\r\n0\r\n
+
+[14:30:04] → /chatgpt.php
+[14:30:04] ← {SHA1_HASH}\r\n
+
+[14:30:05] → /comm2024.php
+[14:30:05] ← {344_BYTE_BLOB}\r\n

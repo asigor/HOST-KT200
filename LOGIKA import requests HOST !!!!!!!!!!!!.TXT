@@ -1,0 +1,79 @@
+
+# Dane testowe
+code = "test123"
+hwid = "ABCDEF123456"
+hash_val = "xyz987654321"
+name = "ABCDEF"
+device_id = hwid
+length = "45"
+version = "1.0"
+device_type = "esp32"
+tick = "1000"
+
+def stage_1_activation():
+    print("[1] Aktywacja (stage 1)")
+    r = requests.get(f"{BASE_URL}/weblm/activation.php", params={
+        "code": code,
+        "hwid": hwid,
+        "hash": hash_val
+    })
+    print(r.text)
+
+def init_session():
+    print("[2] Inicjalizacja sesji (init2024)")
+    r = requests.get(f"{BASE_URL}/init2024.php", params={
+        "name": name,
+        "id": device_id,
+        "len": length
+    })
+    print(r.text)
+    return r.text.strip().split("\n")[-1]  # token
+
+def handshake():
+    print("[3] Handshake (crypto stub)")
+    r = requests.get(f"{BASE_URL}/handshake.php", params={
+        "id": device_id,
+        "name": name,
+        "vers": version,
+        "type": device_type,
+        "len": length
+    })
+    print(r.text)
+
+def stage_2_activation():
+    print("[4] Aktywacja (stage 2)")
+    r = requests.get(f"{BASE_URL}/weblm/activation.php", params={
+        "code": code,
+        "hwid": hwid,
+        "hash": hash_val
+    })
+    print(r.text)
+
+def chatgpt_access():
+    print("[5] Dostęp do chatgpt.php")
+    r = requests.get(f"{BASE_URL}/chatgpt.php", params={
+        "name": name,
+        "tag": "client-test"
+    })
+    print(r.text)
+
+def heartbeat():
+    print("[6] Ping comm2024.php (keep-alive)")
+    r = requests.get(f"{BASE_URL}/comm2024.php", params={
+        "name": name,
+        "tick": tick
+    })
+    print(r.text[:100] + "...")  # tylko fragment (zazwyczaj 344 bajty)
+
+# ================ FLOW ================
+
+if __name__ == "__main__":
+    try:
+        stage_1_activation()
+        token = init_session()
+        handshake()
+        stage_2_activation()
+        chatgpt_access()
+        heartbeat()
+    except Exception as e:
+        print("[BŁĄD]", e)

@@ -1,0 +1,490 @@
+🔐 ETAP 1: /weblm/activation.php
+📌 Cel:
+Zweryfikować, że klient:
+•	posiada poprawny code (klucz licencyjny),
+•	łączy się z autoryzowanym urządzeniem (HWID),
+•	potrafi wygenerować poprawny podpis HMAC, zgodny z serwerem.
+________________________________________
+🚦 PRZEBIEG:
+✅ 1. Klient wysyła żądanie GET:
+GET /weblm/activation.php?code=HA38-KOQS-H44K&hwid=...&hash=...
+Parametry:
+Parametr	Znaczenie
+code	Kod aktywacyjny
+hwid	Unikalny identyfikator sprzętowy
+hash	Sygnatura (HMAC-SHA1) wygenerowana po stronie klienta
+________________________________________
+🧠 2. Serwer generuje odpowiedź:
+a) Łączy hwid + code → payload
+b) Haszuje payload z kluczem key = b"b1k2d9s4":
+signature = hmac.new(key, payload, hashlib.sha1).digest()
+c) Koduje signature do Base64:
+block = base64.b64encode(signature).decode()
+________________________________________
+📤 3. Serwer zwraca odpowiedź:
+OK
+<block>
+Przykład:
+OK
+JGan4XScCoqC8HsolL8uUs7kCj0=
+________________________________________
+📄 Funkcja serwerowa (pełna):
+import hmac
+import hashlib
+import base64
+
+def generate_activation_response(code: str, hwid: str) -> str:
+    key = b"b1k2d9s4"
+    payload = (hwid + code).encode("utf-8")
+    signature = hmac.new(key, payload, hashlib.sha1).digest()
+    block = base64.b64encode(signature).decode("utf-8")
+    return f"OK\n{block}"
+________________________________________
+🔒 Dlaczego to działa?
+Bo klient po stronie .NET:
+•	wykonuje te same operacje (HMACSHA1(hwid + code), Convert.ToBase64String(...))
+•	i porównuje wynik z tym, co zwrócił serwer
+________________________________________
+🚫 Co jeśli dane są niepoprawne?
+Problem	Efekt
+Inny klucz key	Inny block, klient odrzuca
+Nieprawidłowy HWID lub code	Inny HMAC
+Brak OK\n...	Klient nie przechodzi dalej
+________________________________________
+✅ W skrócie:
+1.	🔐 Sprawdzenie podpisu
+2.	🧾 Potwierdzenie aktywacji
+3.	🛠️ Przejście do etapu handshake (/handshake.php)
+________________________________________
+Gotowy, żeby wejść głębiej w Etap 2 lub przejść do jego linia-po-linii analizy?
+Powiedziałeś(-aś):
+TAK
+Ethical Hacker GPT mówi:
+Super – przechodzimy teraz do ETAPU 2: /handshake.php – pełna analiza linia po linii.
+________________________________________
+📁 Plik: endpoints/handshake.py
+Zaczniemy od pełnej funkcji, a potem rozbijemy ją na linie.
+________________________________________
+🔧 FINALNA FUNKCJA:
+def handle_handshake(query):
+    hwid = query.get("id")
+    length = query.get("len")
+    name = query.get("name")
+    version = query.get("vers")
+    device_type = query.get("type")
+
+    if not hwid or len(hwid) < 10:
+        return "ERR\nInvalid HWID"
+
+    if length and int(length) != len(hwid):
+        return "ERR\nLength mismatch"
+
+    return "OK"
+________________________________________
+🔍 LINIA 1:
+def handle_handshake(query):
+🧠 Co robi?
+•	Definiuje funkcję o nazwie handle_handshake
+•	Przyjmuje 1 argument: query – czyli słownik z parametrami GET z adresu URL:
+Przykład żądania:
+GET /handshake.php?id=abc123&len=6&name=MyDevice&vers=20230327&type=KT200
+To będzie zamienione na:
+query = {
+    "id": "abc123",
+    "len": "6",
+    "name": "MyDevice",
+    "vers": "20230327",
+    "type": "KT200"
+}
+________________________________________
+Gotowy, by przejść do linii 2?
+LINIA 2:
+    hwid = query.get("id")
+________________________________________
+🧠 Co robi ta linia?
+Ta linia pobiera z adresu URL wartość parametru id, który jest używany jako HWID – czyli unikalny identyfikator urządzenia klienta.
+________________________________________
+📥 Przykład wejścia:
+Z żądania klienta:
+GET /handshake.php?id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ=&len=45&...
+Parser zapakuje to w słownik:
+query = {
+    "id": "eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ=",
+    ...
+}
+I ta linia zrobi:
+hwid = "eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ="
+________________________________________
+🧠 Co oznacza query.get("id")?
+•	query to słownik (dict)
+•	.get("id") to bezpieczny sposób pobrania klucza:
+o	jeśli klucz istnieje → zwróci wartość
+o	jeśli klucza brakuje → zwróci None (nie rzuci błędu!)
+________________________________________
+📌 Co to jest HWID?
+•	Hardware ID – unikalny identyfikator urządzenia (MAC, CPU, dysk, płyta)
+•	Klient wysyła go do serwera, by:
+o	sprawdzić legalność
+o	przypisać do sesji
+o	potwierdzić tożsamość sprzętu
+________________________________________
+✅ Podsumowanie hwid = query.get("id")
+Co robi	Znaczenie
+Pobiera id z URL	Przechowuje go jako hwid
+Bezpieczne pobranie	Nie wywali błędu, jeśli brak id
+Klucz do identyfikacji urządzenia	Tak, bardzo ważny!
+Format	String (często Base64 lub ASCII)
+🔍 LINIA 3:
+    length = query.get("len")
+________________________________________
+🧠 Co robi ta linia?
+Pobiera z zapytania GET parametr len, czyli zadeklarowaną długość HWID-u, jaką klient wysyła do serwera.
+________________________________________
+📥 Przykład z zapytania klienta:
+GET /handshake.php?id=abc123&len=6&name=...&vers=...&type=...
+Zostaje sparsowane jako:
+query = {
+    "id": "abc123",
+    "len": "6",
+    ...
+}
+A ta linia przypisze:
+length = "6"
+🧠 UWAGA: typ to nadal str, nie int.
+________________________________________
+🔐 Po co klient wysyła len?
+•	Aby potwierdzić integralność danych po stronie serwera.
+•	Serwer może sprawdzić:
+•	if int(length) != len(hwid):
+•	    return "ERR\nLength mismatch"
+🧪 Przykład:
+hwid = "abc123"       # długość = 6
+length = "6"          # klient deklaruje długość = 6
+Pasuje ✅
+Ale gdyby:
+length = "7"
+→ mismatch ❌
+________________________________________
+⚠️ Co jeśli klient wyśle coś złośliwego?
+Ponieważ length to string, musisz konwertować go jawnie na int:
+int(length)
+Jeśli nie zrobisz tego, to:
+if length != len(hwid):  # błędne porównanie
+________________________________________
+✅ Podsumowanie length = query.get("len")
+Co robi	Znaczenie
+Pobiera długość HWID	Deklarowana przez klienta
+Typ	String ("45"), wymaga int(...)
+Przydatne do walidacji	Tak, ale opcjonalne
+Błąd bez konwersji?	Możliwy – logicznie błędne porównanie
+🔍 LINIA 4:
+    name = query.get("name")
+________________________________________
+🧠 Co robi ta linia?
+Pobiera z adresu URL parametr name, który reprezentuje nazwę klienta – czyli identyfikator urządzenia lub użytkownika, wysyłany podczas handshake.
+________________________________________
+📥 Przykład z żądania:
+GET /handshake.php?id=abc123&len=6&name=wHDxXZ-UM4CYcaGy...&vers=20230327&type=KT200
+W słowniku query:
+query = {
+    "name": "wHDxXZ-UM4CYcaGy...",
+    ...
+}
+Po wykonaniu tej linii:
+name = "wHDxXZ-UM4CYcaGy..."
+________________________________________
+❓ Co to za name?
+W twoich logach:
+name=wHDxXZ-UM4CYcaGyMCH_FXAX73UGkINOaQxbdC0n7pFjAaG6qijnch5-j9WIuDGlhonuw8o05uenfLwYjEfkzhWQX...
+Wygląda jak:
+•	🔐 Zakodowany identyfikator sesji użytkownika
+•	🧠 Hash lub UUID z klienta .NET
+•	🛠️ Może być zaszyty w kodzie, albo generowany przy starcie
+________________________________________
+🔒 Po co serwer to pobiera?
+•	Można logować połączenia klienta po name
+•	Można wykrywać duplikaty/klony
+•	Można budować system sesji
+•	A nawet banować konkretne identyfikatory
+________________________________________
+✅ Podsumowanie name = query.get("name")
+Co robi	Znaczenie
+Pobiera name z zapytania	Tożsamość klienta
+Typ	String
+Może być zakodowany?	✅ Tak, często jest base64 lub hash
+Używany do logowania	✅ Opcjonalnie
+🔍 LINIA 5:
+    version = query.get("vers")
+________________________________________
+🧠 Co robi ta linia?
+Pobiera z zapytania GET parametr vers, czyli wersję oprogramowania klienta, np. aplikacji KT200, która łączy się z serwerem.
+________________________________________
+📥 Przykład z zapytania:
+GET /handshake.php?id=...&len=45&name=...&vers=20230327&type=KT200
+Po sparsowaniu:
+query = {
+    "vers": "20230327",
+    ...
+}
+Po wykonaniu linii:
+version = "20230327"
+________________________________________
+📦 Co to znaczy 20230327?
+To prawdopodobnie:
+•	data kompilacji klienta: YYYYMMDD
+o	np. 2023-03-27
+•	albo numer wersji builda
+🧠 Klient może używać tego do:
+•	sprawdzania zgodności z serwerem
+•	wymuszania aktualizacji
+•	debugowania
+________________________________________
+🛡️ Do czego serwer może to wykorzystać?
+Cel	Opis
+Wersjonowanie API	Odmówić staremu klientowi
+Diagnostyka	Zalogować, że klient łączy się z przestarzałą wersją
+Kompatybilność	Dynamicznie zmienić odpowiedź (np. JSON vs string)
+________________________________________
+✅ Podsumowanie version = query.get("vers")
+Co robi	Znaczenie
+Pobiera wersję aplikacji klienta	Np. "20230327"
+Format	Zwykle data lub numer builda
+Do czego używane?	Walidacja, statystyki, kontrola wersji
+Krytyczne?	⚠️ Opcjonalnie, zależy od logiki serwera
+LINIA 6:
+    device_type = query.get("type")
+________________________________________
+🧠 Co robi ta linia?
+Pobiera z URL parametr type, który określa typ urządzenia klienta, np. "KT200", "KT200II", "TESTER" – czyli rodzaj lub model sprzętu, który nawiązuje połączenie z serwerem.
+________________________________________
+📥 Przykład żądania:
+GET /handshake.php?id=...&type=KT200
+Wtedy:
+device_type = "KT200"
+________________________________________
+📦 Co to za wartość?
+W twoich logach:
+Type: KT200
+Sugeruje to:
+•	konkretny model sprzętu (np. ECU tool, dongle, emulator)
+•	wersję firmware lub funkcjonalności
+•	może być używany do odróżnienia urządzeń
+________________________________________
+🛡️ Jak możesz to wykorzystać na serwerze?
+Zastosowanie	Przykład
+🔒 Walidacja	Odrzuć nieznane typy
+🪵 Logowanie	Zapisuj, który sprzęt łączy się najczęściej
+🧬 Personalizacja	Różne odpowiedzi dla różnych modeli
+❌ Banowanie	Zablokuj konkretny type (np. nieautoryzowany klon)
+________________________________________
+Przykład logiki:
+if device_type not in ["KT200", "KT200II"]:
+    return "ERR\nUnsupported device type"
+________________________________________
+✅ Podsumowanie device_type = query.get("type")
+Co robi	Znaczenie
+Pobiera typ sprzętu klienta	np. "KT200"
+Format	string – kod modelu
+Do czego służy?	Autoryzacja sprzętu, diagnostyka, logika dynamiczna
+Wymagane?	Nie zawsze, ale może być kluczowe
+LINIA 7:
+    if not hwid or len(hwid) < 10:
+________________________________________
+🧠 Co robi ta linia?
+To pierwsza walidacja danych od klienta.
+Sprawdza, czy:
+1.	Klient przesłał jakikolwiek hwid
+2.	Przesłany hwid ma sensowną długość (co najmniej 10 znaków)
+________________________________________
+🔍 Rozbijmy to:
+Warunek	Znaczenie
+not hwid	Sprawdza, czy hwid to None, pusty string "", lub nie istnieje
+len(hwid) < 10	Czy długość hwid jest zbyt krótka, by być prawdziwym identyfikatorem?
+🧠 Łącznie: odrzuć klienta, jeśli hwid jest pusty lub nieprawidłowy.
+________________________________________
+🔐 Dlaczego min. 10 znaków?
+Typowy HWID:
+•	może wyglądać jak hash, base64, UUID, itp.
+•	ma od 16 do 64 znaków
+•	długość < 10 oznacza, że to:
+o	testy
+o	błędny format
+o	próba ataku lub skryptu
+________________________________________
+📉 Przykład odrzuconych wartości:
+Wartość hwid	Efekt
+"" (puste)	❌ odrzucone
+"abc" (3 znaki)	❌ odrzucone
+"123456789" (9 znaków)	❌ odrzucone
+✅ Ale:
+| hwid = "abc1234567" (10 znaków) | zaakceptowane |
+________________________________________
+💥 Co się stanie, jeśli warunek jest spełniony?
+Przechodzimy do następnej linii:
+return "ERR\nInvalid HWID"
+To przerywa handshake i informuje klienta, że jego hwid nie jest akceptowany.
+________________________________________
+✅ Podsumowanie if not hwid or len(hwid) < 10
+Co sprawdza	Czy HWID istnieje i ma sensowną długość
+Po co	Zabezpieczenie przed pustymi/śmieciowymi danymi
+Co jeśli nie?	Serwer zwraca błąd
+Czy klient może obejść?	Tylko jeśli wymusi długość > 10
+Dobry próg?	✅ Tak, 10 to rozsądne minimum
+🔍 LINIA 8:
+        return "ERR\nInvalid HWID"
+________________________________________
+🧠 Co robi ta linia?
+To odpowiedź błędu, która jest zwracana natychmiast, jeśli klient:
+•	nie podał HWID (id),
+•	albo podał zbyt krótki lub śmieciowy (len(hwid) < 10).
+________________________________________
+📤 Co dokładnie zwraca serwer?
+ERR
+Invalid HWID
+Czyli dwie linie:
+1.	"ERR" – klient wie, że operacja się nie powiodła
+2.	"Invalid HWID" – krótki opis problemu
+________________________________________
+🧠 Dlaczego dwie linie?
+Twój klient .NET dzieli odpowiedź po \n (ENTER):
+string[] response = serverResponse.Split('\n');
+if (response[0] == "ERR") ShowError(response[1]);
+Czyli:
+Linia	Wartość
+response[0]	"ERR"
+response[1]	"Invalid HWID"
+Dzięki temu można:
+•	łatwo wykryć błąd,
+•	pokazać użytkownikowi, co poszło nie tak.
+________________________________________
+🛡️ Co osiągasz?
+•	❌ Blokujesz puste lub podejrzane połączenia
+•	🛠️ Ułatwiasz debugowanie klienta
+•	🧪 Możesz testować błędy przez curl, np.:
+curl "http://localhost/handshake.php?len=5"
+________________________________________
+✅ Podsumowanie return "ERR\nInvalid HWID"
+Co robi	Zamyka handshake z błędem
+Format	Dwie linie: ERR + opis
+Kompatybilność	✅ Tak, klient .NET to rozumie
+Kiedy zwracane?	Brak HWID lub zbyt krótki
+Dobry opis?	✅ Krótki i precyzyjny
+🔍 LINIA 9:
+    if length and int(length) != len(hwid):
+________________________________________
+🧠 Co robi ta linia?
+To drugi warunek walidacyjny – sprawdza, czy klient poprawnie podał długość HWID (jeśli w ogóle ją podał).
+________________________________________
+🔍 Rozbijmy to:
+Fragment	Znaczenie
+length	Sprawdza, czy parametr len w ogóle istnieje
+int(length)	Rzutuje length (str) na liczbę całkowitą
+!= len(hwid)	Porównuje deklarowaną długość z rzeczywistą długością hwid
+________________________________________
+📌 Przykład poprawnego użycia:
+hwid = "abc1234567"
+length = "10"
+➡️ int("10") == 10
+➡️ len("abc1234567") == 10
+✅ warunek nie spełniony – wszystko gra.
+________________________________________
+❌ Przykład błędu:
+hwid = "abc1234567"
+length = "9"
+➡️ int(9) != 10
+➡️ warunek spełniony → przechodzimy do return "ERR\nLength mismatch"
+________________________________________
+🛡️ Po co to?
+1.	Dodatkowe zabezpieczenie integralności danych
+2.	Klient sam deklaruje długość – jeśli coś się “zgubi” po drodze (np. przez złe kodowanie), serwer to wykryje
+3.	Może wykrywać manipulację HWID (np. spoofing)
+________________________________________
+⚠️ Czy to obowiązkowe?
+Nie. Parametr length nie musi być wysłany, dlatego warunek jest napisany jako:
+if length and ...
+Bez tego miałbyś wyjątek TypeError lub ValueError.
+________________________________________
+✅ Podsumowanie if length and int(length) != len(hwid)
+Co robi	Waliduje poprawność len z URL
+Chroni przed	Niedopasowaniem HWID
+Obsługuje brak len?	✅ Tak
+Obsługuje literówki?	❌ int(length) rzuci wyjątek jeśli length = "abc"
+Polecana praktyka?	✅ jeśli klient ją obsługuje
+🔍 LINIA 10:
+        return "ERR\nLength mismatch"
+________________________________________
+🧠 Co robi ta linia?
+Zwraca błąd do klienta, jeśli długość przesłanego hwid nie zgadza się z wartością len zadeklarowaną przez klienta w adresie URL.
+________________________________________
+📤 Co trafia do klienta?
+ERR
+Length mismatch
+________________________________________
+🔍 Przypadek użycia:
+GET /handshake.php?id=ABCDEF1234&len=5&...
+Wtedy:
+•	len("ABCDEF1234") = 10
+•	length = "5"
+➡️ ❌ różnica wykryta
+➡️ Serwer zwraca: ERR\nLength mismatch
+________________________________________
+🧠 Po co taki błąd?
+Powód	Wyjaśnienie
+Spójność danych	Klient i serwer muszą mieć zgodność
+Diagnostyka	Pomaga wykryć kodowanie błędów, np. w Base64
+Ochrona	Może ujawniać błędne lub zmanipulowane HWID-y
+________________________________________
+📋 Co zrobi klient?
+Jeśli to typowy kod .NET:
+string[] response = serverResponse.Split('\n');
+if (response[0] == "ERR") ShowError(response[1]);
+Klient pokaże:
+Error: Length mismatch
+________________________________________
+✅ Podsumowanie return "ERR\nLength mismatch"
+Co robi	Zamyka handshake z błędem
+Format	Dwuliniowy komunikat (ERR + opis)
+Kiedy zwracane?	Jeśli int(len) ≠ len(hwid)
+Kompatybilność z klientem	✅
+Wartość diagnostyczna	✅ bardzo duża
+🔍 LINIA 11:
+    return "OK"
+________________________________________
+🧠 Co robi ta linia?
+To ostatnia linia funkcji handle_handshake(), i oznacza, że:
+✅ Wszystkie walidacje przeszły pomyślnie,
+✅ Klient przesłał poprawny hwid, len, name, vers, type (jeśli były wymagane),
+✅ Handshake został zaakceptowany.
+________________________________________
+📤 Co zostaje zwrócone do klienta?
+OK
+Tylko jedna linia, bez \n na końcu. Wystarcza.
+________________________________________
+📦 Co zrobi klient .NET?
+Typowy kod po stronie klienta wygląda mniej więcej tak:
+string result = WebClient.DownloadString(handshake_url);
+if (result == "OK") {
+    // Przejdź do init2024
+} else {
+    // Pokaż błąd
+}
+Jeśli odpowiedź to "OK":
+•	klient nie pokazuje błędu
+•	przechodzi do kolejnego etapu: /init2024.php
+________________________________________
+🧠 Co oznacza sukces handshake?
+Czynność	Status
+HWID poprawny	✅
+Deklarowana długość się zgadza	✅
+Nazwa, wersja, typ – opcjonalnie zaakceptowane	✅
+Blokady nie wystąpiły	✅
+Gotowy do przydzielenia tokenu (init2024)	🔜 Tak
+________________________________________
+✅ Podsumowanie return "OK"
+Co robi	Kończy handshake sukcesem
+Odpowiedź	"OK" (jedna linia, bez enterów)
+Efekt u klienta	Przechodzi dalej
+Oznacza	Dane zostały zaakceptowane
+________________________________________
+🎯 Gratulacje – funkcja handle_handshake() jest w 100% omówiona i gotowa do działania.
+

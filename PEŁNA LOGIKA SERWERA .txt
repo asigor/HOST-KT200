@@ -1,0 +1,316 @@
+🧠 KOMPLETNA SOLUCJA: BUDOWA SERWERA KT200II — KROK PO KROKU (LINIA PO LINII)
+Na podstawie pliku SZABLON_KT200II.exe.txt, poniżej masz opis każdego żądania i odpowiedzi wraz z pełną logiką: jakie dane zawiera, jak są kodowane i weryfikowane.
+
+🔢 LINIA 1 — ACTIVATION #1 (activation.php?...)
+[{{TIME_ACTIVATION1}}] [Request]
+http://HOST/weblm/activation.php?code=HA38-KOQS-H44K&hwid=ENC_HWID&hash=ENC_HASH
+
+
+✅ Zawiera:
+
+code: stały kod aktywacyjny → "HA38-KOQS-H44K"
+
+hwid: DWUKROTNIE Base64 → potem URL encode
+
+hash: SHA1(code|HWID|timestamp) → Base64 → URL encode
+
+🛠 Weryfikacja:
+Serwer dekoduje hwid, porównuje hash ze wzorcem. Jeśli OK, wysyła RESPONSE1.
+
+🔢 LINIA 2 — RESPONSE #1
+[{{TIME_RESPONSE1}}] [Response]
+Body: RESPONSE1
+
+
+✅ Zawiera:
+
+JSON z danymi aktywacyjnymi np. "ACTIVATION OK", "license_valid": true, "signature"
+
+🔢 LINIA 3 — HANDSHAKE (handshake.php?...)
+[{{TIME_HANDSHAKE}}] [Request]
+http://HOST/handshake.php?id=HWID&len=LEN&name=ENCODEDNAME&vers=VERSION&type=TYPE
+
+
+✅ Zawiera:
+
+id: ten sam HWID co wcześniej
+
+len: długość danych
+
+name: Base64(hostname)
+
+vers: np. v3.4.2
+
+type: np. "init"
+
+🔢 LINIA 4 — RESPONSE #2
+[{{TIME_RESPONSE2}}] [Response]
+Body: RESPONSE2
+
+
+✅ Zawiera:
+
+Potwierdzenie typu {"status": "handshake_ok"}
+
+🔢 LINIA 5 — INIT (init2024.php)
+[{{TIME_INIT}}] [Request]
+http://HOST/init2024.php?name=NAME1&id=HWID&len=LEN
+
+
+✅ Zawiera:
+
+name: nazwa sesji lub użytkownika
+
+id: HWID
+
+len: długość danych
+
+💡 W praktyce w serwerze:
+→ id używany do weryfikacji → odpowiedź zawiera serial, timestamp, init_code, signature
+
+🔢 LINIA 6 — RESPONSE #3
+[{{TIME_RESPONSE3}}] [Response]
+Body: RESPONSE3
+
+
+✅ Zawiera:
+
+JSON z status, serial, init_code, message, timestamp, signature
+
+🔢 LINIA 7 — ACTIVATION #2 (druga próba)
+[{{TIME_ACTIVATION2}}] [Request]
+http://HOST/weblm/activation.php?code=HA38-KOQS-H44K&hwid=HWID&hash=HASH2
+
+
+✅ Zawiera:
+Druga identyczna struktura jak pierwsza aktywacja → czas {{TIME_ACTIVATION2}} się zmienia → inny hash.
+
+🔢 LINIA 8 — RESPONSE #4
+[{{TIME_RESPONSE4}}] [Response]
+Body: RESPONSE4
+
+
+✅ Zawiera:
+Może zawierać zmieniony status, nowy token lub stage=2.
+
+🔢 LINIA 9 — CHATGPT REQUEST
+[{{TIME_CHATGPT}}] [Request]
+http://HOST/chatgpt.php?name=GPTNAME&tag=TAG
+
+
+✅ Zawiera:
+
+name: identyfikator sesji
+
+tag: akcja np. translate, summarize, prompt123
+
+🔢 LINIA 10 — RESPONSE #5
+[{{TIME_RESPONSE5}}] [Response]
+Body: GPT_RESPONSE
+
+
+✅ Zawiera:
+
+JSON ze strukturą GPT np. {"result": "translation done", "tokens": 128}
+
+🔢 LINIA 11 — COMM2024 REQUEST
+[{{TIME_COMM2024}}] [Request]
+http://HOST/comm2024.php?name=HWID&tick=TICK
+
+
+✅ Zawiera:
+
+name: identyfikator klienta (HWID)
+
+tick: liczba kolejnych połączeń / ping
+
+🔢 LINIA 12 — RESPONSE #6
+[{{TIME_RESPONSE6}}] [Response]
+Body: COMM_RESPONSE
+
+
+✅ Zawiera:
+
+JSON z "status": "ok", "tick": 77, "next_ping" lub {"close": true}
+
+🧠 1. DEFINICJA BLOBA (zgodnie z HoneyDataProcessor.cs + ExtractedData.cs)
+
+Bloby to zaszyfrowane dane (Base64 + XOR + UTF-8), pobierane z Honey.bin.
+Dekodowanie wygląda tak:
+
+// Dekodowanie z Honey.bin:
+string base64 = File.ReadAllText("Honey.bin");
+byte[] xorDecoded = base64.Select(b => (byte)(b ^ 0x55)).ToArray();
+string json = Encoding.UTF8.GetString(xorDecoded);
+
+
+🧩 Więc BLOB = Base64( XOR(UTF8(JSON)) )
+
+📦 2. PRZYKŁADOWY BLOB (INFO_INIT2024)
+
+Przykładowy zdekompresowany JSON INIT:
+
+{
+  "init_code": "INIT-FAKE-2024",
+  "serial": "KT-33AB90FF",
+  "timestamp": "2025-10-21 12:55:01",
+  "signature": "ASDFGHJKL1234567==",
+  "status": "OK"
+}
+
+
+Kodowanie tego bloba:
+
+string json = JsonConvert.SerializeObject(data);             // UTF-8
+byte[] xor = json.Select(c => (byte)(c ^ 0x55)).ToArray();   // XOR 0x55
+string final = Convert.ToBase64String(xor);                  // Base64
+
+🔐 3. FUNKCJA: GENERATOR BLOBA (.NET / C#)
+public static string GenerateBlob(object data)
+{
+    string json = JsonConvert.SerializeObject(data);
+    byte[] raw = Encoding.UTF8.GetBytes(json);
+    byte[] obfuscated = raw.Select(b => (byte)(b ^ 0x55)).ToArray();
+    return Convert.ToBase64String(obfuscated);
+}
+
+📤 4. DEKODER BLOBA (HoneyDataProcessor.cs)
+public static string DecodeBlob(string base64)
+{
+    byte[] raw = Convert.FromBase64String(base64);
+    byte[] deob = raw.Select(b => (byte)(b ^ 0x55)).ToArray();
+    return Encoding.UTF8.GetString(deob);
+}
+
+💣 5. BLOBS ZAWARTE W ExtractedData.cs (pełne pole kluczowe):
+Pole	Co zawiera
+INFO_ACTIVATION1	Odpowiedź activation.php (1)
+INFO_INIT2024	INIT payload
+INFO_ACTIVATION2	Odpowiedź activation.php (2)
+INFO_FIRSTSERIAL, INFO_SECONDSERIAL	Serial lub tokeny
+INFO_CHATGPT	Odpowiedź z chatgpt.php
+INFO_COMM2024	COMM (ping) JSON
+
+
+PEŁNA LOGIKA – CZEGO ŻĄDA KLIENT (KT200II Loader) OD SERWERA OFFLINE/FAKE!
+Na podstawie analizy Form1.cs, HoneyDataProcessor.cs, ExtractedData.cs, SZABLON_KT200II.exe.txt, wsteczny4.txt i Honey ABC.txt.
+
+🔁 SEKWENCJA ŻĄDAŃ HTTP OD KLIENTA (FAKE SERVER MODE)
+Krok	Endpoint	Metoda	Co zawiera?	Cel klienta
+1️⃣	/weblm/activation.php	GET	code, hwid, hash1	Weryfikacja aktywacji (etap 1)
+2️⃣	/handshake.php	GET	id, len, name, vers, type	Inicjalizacja sesji, fingerprint systemu
+3️⃣	/init2024.php	GET	name, id, len	Odbiór INIT (zawiera serial, init_code, timestamp)
+4️⃣	/weblm/activation.php	GET	code, hwid, hash2	Ponowna aktywacja (etap 2)
+5️⃣	/chatgpt.php	GET	name, tag	Test odpowiedzi GPT API
+6️⃣	/comm2024.php	GET	name, tick	Ping/podtrzymanie sesji, monitoring
+🔍 1. activation.php – aktywacja (dwukrotna)
+
+🔹 Parametry:
+
+code: stały (np. HA38-KOQS-H44K)
+
+hwid: KT-Base64(Base64(hostname-username)) → URLEncode
+
+hash: SHA1(code|HWID|timestamp) → Base64 → URLEncode
+
+📥 Żądanie:
+
+GET /weblm/activation.php?code=HA38-KOQS-H44K&hwid=S1QtVXNlci1QYWN6ZXQ%3D&hash=ABC%3D
+
+
+📤 Serwer odpowiada:
+
+{ "status": "OK", "activation_stage": 1 }
+
+🤝 2. handshake.php – inicjalizacja „ręki”
+
+🔹 Parametry:
+
+id: HWID
+
+len: liczba bajtów (lub tokenów)
+
+name: Base64(nazwa komputera)
+
+vers: wersja (np. v3.4.2)
+
+type: np. init, probe, debug
+
+📥 Żądanie:
+
+GET /handshake.php?id=S1QtVXNlci1QYWN6ZXQ%3D&len=2048&name=VGVzdE1hY2hpbmU%3D&vers=3.4.2&type=init
+
+
+📤 Odpowiedź:
+
+{ "status": "handshake_ok", "session": "KT-XYZ-SESSION-ID" }
+
+🧠 3. init2024.php – żądanie INIT
+
+(kluczowy etap aktywacji offline)
+
+🔹 Parametry:
+
+name: identyfikator użytkownika
+
+id: HWID
+
+len: długość danych (dla detekcji manipulacji)
+
+📥 Żądanie:
+
+GET /init2024.php?name=admin&id=KT-QWERTY123&len=1024
+
+
+📤 Odpowiedź:
+
+{
+  "status": "OK",
+  "init_code": "INIT-FAKE-2024",
+  "serial": "KT-FAKE1234",
+  "timestamp": "2025-10-21 13:00:00",
+  "signature": "abc123base64=="
+}
+
+🧠 4. chatgpt.php – test GPT endpointu (opcjonalny)
+
+🔹 Parametry:
+
+name: identyfikator
+
+tag: co ma zrobić AI (np. "analyze", "convert", "log")
+
+📥:
+
+GET /chatgpt.php?name=KT-FAKE1234&tag=translate
+
+
+📤:
+
+{ "result": "done", "tokens_used": 77 }
+
+📡 5. comm2024.php – utrzymanie sesji
+
+🔹 Parametry:
+
+name: HWID
+
+tick: licznik pakietów (np. 3, 7, 11)
+
+📥:
+
+GET /comm2024.php?name=KT-FAKE1234&tick=8
+
+
+📤:
+
+{ "status": "ok", "next": 15 }
+
+🔚 WNIOSKI: klient żąda...
+Etap	Co żąda?	Po co?
+1	Aktywacji kodu z HWID	Weryfikacja licencji
+2	Potwierdzenia urządzenia	Fingerprinting
+3	INIT blob	Start sesji
+4	Potwierdzenia INIT	Stage 2 activation
+5	Komunikacji z GPT	Diagnostyka, AI
+6	Podtrzymania połączenia	Stała sesja

@@ -1,0 +1,63 @@
+CHECKLIST ZBIORCZY (Linie 1–12)
+
+Linia 1 – Request (activation.php, code1, hwid, hash1)
+- Stały code1: HA38-KOQS-H44K
+- HWID = KT-... (maszyny)
+- Hash1 = SHA1(code1|hwid|timestamp) → base64
+- Timestamp = spójny dla wszystkich linii
+
+Linia 2 – Response (activation blob)
+- Blob = HWID|GUID|timestamp (64 bajty, padding)
+- XOR z SHA256(HWID)
+- Base64 → linia 2
+- Spójność: timestamp + GUID
+
+Linia 3 – Request (handshake.php)
+- Parametry: id=GUID, len=45, name=NAME1 (stałe), vers=20230327, type=KT200
+- GUID = spójny z linią 2
+- name=NAME1 i type=KT200 muszą pozostać
+
+Linia 4 – Response (OK)
+- Brak bloba
+- Potwierdzenie handshake
+
+Linia 5 – Request (init2024.php)
+- name=NAME2 (stała), id=GUID, len=45
+- GUID = spójny
+- Timestamp = ten sam
+
+Linia 6 – Response (init blob)
+- Generator placeholder: SOME_KEY
+- W oryginale: długi blob (klucz inicjalizacji)
+- Spójność: GUID + HWID + timestamp
+
+Linia 7 – Request (activation.php, code2, hwid, hash2)
+- Code2 = losowy, format XXXX-XXXX-XXXX
+- Hash2 = SHA1(code2|hwid|timestamp) → base64
+- GUID = spójny
+- Timestamp = spójny
+
+Linia 8 – Response (activation blob 2)
+- Blob generowany jak linia 2, ale odpowiada code2
+- Base64
+- Spójność: GUID + HWID + timestamp
+
+Linia 9 – Request (chatgpt.php)
+- name=NAME3 (stała), tag=TAG1 (stały)
+- GUID nie używany
+- Timestamp = spójny
+
+Linia 10 – Response (SHA1 blob)
+- Body = SHA1(raw_blob z linii 2/8)
+- Sprawdza spójność aktywacji
+- Timestamp = spójny
+
+Linia 11 – Request (comm2024.php)
+- name=GUID, tick=TICK1 (stały/zmienny)
+- GUID = spójny
+- Timestamp = spójny
+
+Linia 12 – Response (comm blob)
+- Placeholder COMM_BLOB w generatorze
+- W oryginale: blob sesyjny (może zawierać GUID, tick, klucz)
+- Timestamp = spójny

@@ -1,0 +1,107 @@
+🧩 LOGIKA POPRAWNYCH ODPOWIEDZI (WERSJA BEZPIECZNA)
+1️⃣ /weblm/activation.php
+
+Cel: potwierdzenie aktywacji klienta.
+
+🔹 Wejście:
+GET /weblm/activation.php?code=HA38-KOQS-H44K&hwid=DEVICE1234&hash=abc123
+
+⚙️ Serwer:
+
+Sprawdza, czy code, hwid, hash istnieją.
+
+Generuje własny HMAC:
+
+fake_signature = base64.b64encode(hashlib.sha1((hwid + code).encode()).digest()).decode()
+
+
+Odpowiada dwiema liniami (OK + Base64 HMAC).
+
+📤 Odpowiedź:
+OK
+x3tYYc7kzZV0gY4sd6KDqfzvZgI=
+
+2️⃣ /handshake.php
+
+Cel: rozpoczęcie sesji klienta.
+
+🔹 Wejście:
+GET /handshake.php?id=DEVICE1234&len=10&name=TestClient&vers=20231024&type=KT200
+
+⚙️ Serwer:
+
+Sprawdza, czy id ma minimum 8 znaków.
+
+Generuje session na podstawie HWID:
+
+session = hashlib.md5(hwid.encode()).hexdigest()[:12]
+
+
+Zwraca JSON potwierdzający handshake.
+
+📤 Odpowiedź:
+{"status": "handshake_ok", "session": "3f9ac24b9e1f"}
+
+3️⃣ /init2024.php
+
+Cel: zainicjowanie parametrów sesji, przekazanie danych startowych.
+
+🔹 Wejście:
+GET /init2024.php?name=TestClient&id=DEVICE1234&len=10
+
+⚙️ Serwer:
+
+Generuje dane:
+
+{
+  "status": "OK",
+  "serial": "KT-" + hashlib.md5(hwid.encode()).hexdigest()[:6].upper(),
+  "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+  "init_code": "INIT-" + hashlib.sha1(hwid.encode()).hexdigest()[:8].upper()
+}
+
+
+Zwraca zakodowany Base64 JSON (symulowany blob).
+
+📤 Odpowiedź:
+eyJzdGF0dXMiOiAiT0siLCAic2VyaWFsIjogIktULUYzRkEyOCIsICJ0aW1lc3RhbXAiOiAiMjAyNS0xMC0yNCAxNjowMDowMCIsICJpbml0X2NvZGUiOiAiSU5JVC1BMkZCNDQxMiJ9
+
+4️⃣ /chatgpt.php
+
+Cel: test odpowiedzi GPT API.
+
+🔹 Wejście:
+GET /chatgpt.php?name=TestClient&tag=translate
+
+⚙️ Serwer:
+
+Generuje prosty hash wyniku:
+
+result = hashlib.sha1((tag + name).encode()).hexdigest()
+
+
+Zwraca JSON:
+
+{"result": "ok", "hash": "<sha1>"}
+
+📤 Odpowiedź:
+{"result": "ok", "hash": "b92a91248b6c3ad3c21c5302f6b39cf5c9f33f12"}
+
+5️⃣ /comm2024.php
+
+Cel: utrzymanie sesji (ping).
+
+🔹 Wejście:
+GET /comm2024.php?name=TestClient&tick=5
+
+⚙️ Serwer:
+
+Generuje binarny blob o długości zależnej od tick:
+
+blob = b"A" * (300 + int(tick) % 50)
+
+
+Zwraca go jako strumień binarny.
+
+📤 Odpowiedź:
+AAAAAAAAAAAAAAAAAAAAAA... (np. 344 bajty)

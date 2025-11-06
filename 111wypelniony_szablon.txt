@@ -1,0 +1,119 @@
+FULL LOG:
+[REQUEST] GET http://kt.tuner-tools.com/weblm/activation.php?code=HA38-KOQS-H44K&hwid=eAaMKYle3qH7CFvirtZHTmqIklg%2bZI0fckRZB47YzQQ%3d&hash=EiC3LPVTq6Jd%2bmwRMSRJdb4DVtc%3d
+  Host: kt.tuner-tools.com
+  Path: /weblm/activation.php?code=HA38-KOQS-H44K&hwid=eAaMKYle3qH7CFvirtZHTmqIklg%2bZI0fckRZB47YzQQ%3d&hash=EiC3LPVTq6Jd%2bmwRMSRJdb4DVtc%3d
+  -> Detected: activation.php
+    code: HA38-KOQS-H44K
+    hwid: eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ=
+    hash: EiC3LPVTq6Jd+mwRMSRJdb4DVtc=
+[RESPONSE] HTTP/1.1 200 OK
+[BODY] OK
+InVArVMqUU8A0sABR3S9Fl9uDzfdTZbs8fNjzlj9XZ9PqST9rSXpZrJrkqhCAHOULuuMP9/PJypOdgqB3fj1etWNV0H0KfoqvOcB8OwhgLPwThBLmh/tafuHWn3tvXfzbOc0CrYo75hkY5vkMKoQQU8IhVOpXaSwXffVMLKRs8A0PzjXXr9iHL0xEA9ggiTpDpHAMDW/Kckw4IdXe6Ey3z6QSiLhKABt/ZG069/RoGfw+FkUWdsgqwGxKYm8ayWY1CX/8/thHt6l37MNJ1tByGePSR+TmxCJDfeh00wYZWAxrbbVSxY4gSQ0VOIxsfip8Rv7G5Jbs+q9DuQG+zSd2g==
+[REQUEST] GET http://kt.tuner-tools.com/handshake.php?id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ=&len=45&name=SIIQqX746Kje8bx1waWQR-qT7qnt99YS8A8K3ErvCHVOYwWzZRkGlbDx2o6dJsHtWcKUpQI6UKw50b5g1ImhwjQgLH12rY9imjOtYdCsnFq7gUP5lm3g_2D8pCh1flQdk_cCO9xrlKH9ma7JsUncGRn15_tFRnS0pgct_TuMDh8MZ8SRtqoh86hNcu3CneZDApkCHKjJtLFMNFOmFQ8w9fxXrqRwJbfl5zk46NEedQjPk_J1TzzZaH_SBVIty-_DntW6k0vDxOwYyd4gyKAqsXejs2gynVc9_6SpgtyKmGSRf0xV874jbkLc_5iEhkWMfIzqWufUxWfcKfexGLvirQ==&vers=20230327&type=KT200
+  Host: kt.tuner-tools.com
+  Path: /handshake.php?id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ=&len=45&name=SIIQqX746Kje8bx1waWQR-qT7qnt99YS8A8K3ErvCHVOYwWzZRkGlbDx2o6dJsHtWcKUpQI6UKw50b5g1ImhwjQgLH12rY9imjOtYdCsnFq7gUP5lm3g_2D8pCh1flQdk_cCO9xrlKH9ma7JsUncGRn15_tFRnS0pgct_TuMDh8MZ8SRtqoh86hNcu3CneZDApkCHKjJtLFMNFOmFQ8w9fxXrqRwJbfl5zk46NEedQjPk_J1TzzZaH_SBVIty-_DntW6k0vDxOwYyd4gyKAqsXejs2gynVc9_6SpgtyKmGSRf0xV874jbkLc_5iEhkWMfIzqWufUxWfcKfexGLvirQ==&vers=20230327&type=KT200
+  -> Detected: handshake.php
+    id: eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ=
+    name: SIIQqX746Kje8bx1waWQR-qT7qnt99YS8A8K3ErvCHVOYwWzZRkGlbDx2o6dJsHtWcKUpQI6UKw50b5g1ImhwjQgLH12rY9imjOtYdCsnFq7gUP5lm3g_2D8pCh1flQdk_cCO9xrlKH9ma7JsUncGRn15_tFRnS0pgct_TuMDh8MZ8SRtqoh86hNcu3CneZDApkCHKjJtLFMNFOmFQ8w9fxXrqRwJbfl5zk46NEedQjPk_J1TzzZaH_SBVIty-_DntW6k0vDxOwYyd4gyKAqsXejs2gynVc9_6SpgtyKmGSRf0xV874jbkLc_5iEhkWMfIzqWufUxWfcKfexGLvirQ==
+    len: 45
+[RESPONSE] HTTP/1.1 200 OK
+[BODY] OK
+[REQUEST] GET http://kt.tuner-tools.com/init2024.php?name=NWNlMGQzOTQzYTg2ZTkxMTVjZTBkMzk0M2E4NmU5MTE&id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&len=45
+  Host: kt.tuner-tools.com
+  Path: /init2024.php?name=NWNlMGQzOTQzYTg2ZTkxMTVjZTBkMzk0M2E4NmU5MTE&id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&len=45
+  -> Detected: /init2024.php?name=NWNlMGQzOTQzYTg2ZTkxMTVjZTBkMzk0M2E4NmU5MTE&id=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&len=45
+    name: NWNlMGQzOTQzYTg2ZTkxMTVjZTBkMzk0M2E4NmU5MTE
+    id: eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ
+    len: 45
+[RESPONSE] HTTP/1.1 200 OK
+[BODY] f7rxZIHmw90FF2Opetjjt3D16Ey_gJG2AMTkyNTE0MjkxNTI4MDQwOA||22
+[REQUEST] GET http://kt.tuner-tools.com/weblm/activation.php?code=MDQV-V95U-9U2O&hwid=eAaMKYle3qH7CFvirtZHTmqIklg%2bZI0fckRZB47YzQQ%3d&hash=NCIQlM9YvygHQXIoE2YF3vB5UCY%3d
+  Host: kt.tuner-tools.com
+  Path: /weblm/activation.php?code=MDQV-V95U-9U2O&hwid=eAaMKYle3qH7CFvirtZHTmqIklg%2bZI0fckRZB47YzQQ%3d&hash=NCIQlM9YvygHQXIoE2YF3vB5UCY%3d
+  -> Detected: activation.php
+    code: MDQV-V95U-9U2O
+    hwid: eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ=
+    hash: NCIQlM9YvygHQXIoE2YF3vB5UCY=
+[RESPONSE] HTTP/1.1 200 OK
+[BODY] OK
+mDZYwbTKM4rSobnrarM4P105r5Ha9bt/Db4NqB0ZSkTY845DdES021RRH0nFRbeHUK3PXj25YNaa5u4ZvO3GYfikeWemxFh6A2HUbKqyZ/+jryr0NFkp6qj8mLTnNuRxKJ5D7VUkWr4xxIIU/6FRmOwNKVFQfkXs7yhu7ukl4HHfv+7TB+uX/cNUxolurVSUEBDjcJKSftKu9mIIqgNisZjEYpVnCWk4s5ONUQhpibmBdOBGu6wmhZFw0MlHgQvAsq7vC54hj6M0mKF+No8k4+1Sq2zgHMkMtSAshqptH4ynhZSsTTmyjwWTmY0wjIUuyrGBV/a240iWiL/CdmMiyg==
+[REQUEST] GET http://kt.tuner-tools.com/chatgpt.php?name=NTdlYzY2YjA3ZTkyOGE2YzkzNWMzYjcyZWFiYjY4ZDM&tag=34ec0879c5b88be6f8f175124f94edcca2c9120e
+  Host: kt.tuner-tools.com
+  Path: /chatgpt.php?name=NTdlYzY2YjA3ZTkyOGE2YzkzNWMzYjcyZWFiYjY4ZDM&tag=34ec0879c5b88be6f8f175124f94edcca2c9120e
+  -> Detected: chatgpt.php
+    name: NTdlYzY2YjA3ZTkyOGE2YzkzNWMzYjcyZWFiYjY4ZDM
+    tag: 34ec0879c5b88be6f8f175124f94edcca2c9120e
+[RESPONSE] HTTP/1.1 200 OK
+[BODY] 08d670892e0b4537001225aac1cfc39c4010cbbb
+[REQUEST] GET http://kt.tuner-tools.com/comm2024.php?name=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&tick=707e7fb33999644426529c4bc8f9e11350b1ee64
+  Host: kt.tuner-tools.com
+  Path: /comm2024.php?name=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&tick=707e7fb33999644426529c4bc8f9e11350b1ee64
+  -> Detected: /comm2024.php?name=eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ&tick=707e7fb33999644426529c4bc8f9e11350b1ee64
+    name: eAaMKYle3qH7CFvirtZHTmqIklg_ZI0fckRZB47YzQQ
+    tick: 707e7fb33999644426529c4bc8f9e11350b1ee64
+[RESPONSE] HTTP/1.1 200 OK
+[BODY] JrZ_EB-alf5F0isyQWVdWrTQf2Irn-CovH7jZtug0rLm2g2hNP2EyKkhvc6AsGdsXLon5B2j0ply5th9kFROoXU0iFpaQxOnHe5_i_uK_qBKsm3VkwouAZFSctLDs8ElL6tZxN5Z6osbK6-fuXzHZVlancrplaN2bpsSzGKAfdr3e04zoxpLSYO9oxvgwqAOC3KIEmdGchii1E3bmHlNiENU-M60MBGMBdiytDetQcygvQtpKMcfhURhvN-bh0RnsSu-koZkObucLAVciO1J7TupnTawHuhMoGyv7k0dA_P1bjU0vzYExiRpz2tQrG4oqtqpAEZc6H4IGrxE4RYmhA
+
+
+Collected data fields: 32
+  CODE1: HA38-KOQS-H44K
+  CODE2: MDQV-V95U-9U2O
+  COMM_RESPONSE: JrZ_EB-alf5F0isyQWVdWrTQf2Irn-CovH7jZtug0rLm2g2hNP...
+  ENCODEDNAME: SIIQqX746Kje8bx1waWQR-qT7qnt99YS8A8K3ErvCHVOYwWzZR...
+  GPTNAME: NTdlYzY2YjA3ZTkyOGE2YzkzNWMzYjcyZWFiYjY4ZDM
+  GPT_RESPONSE: 08d670892e0b4537001225aac1cfc39c4010cbbb
+  HASH1: EiC3LPVTq6Jd+mwRMSRJdb4DVtc%3d
+  HASH2: NCIQlM9YvygHQXIoE2YF3vB5UCY%3d
+  HOST: kt.tuner-tools.com
+  HWID: eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ%3d
+  LEN: 45
+  NAME1: NWNlMGQzOTQzYTg2ZTkxMTVjZTBkMzk0M2E4NmU5MTE
+  RESPONSE1: OK
+InVArVMqUU8A0sABR3S9Fl9uDzfdTZbs8fNjzlj9XZ9PqST...
+  RESPONSE2: OK
+  RESPONSE3: f7rxZIHmw90FF2Opetjjt3D16Ey_gJG2AMTkyNTE0MjkxNTI4M...
+  RESPONSE4: OK
+mDZYwbTKM4rSobnrarM4P105r5Ha9bt/Db4NqB0ZSkTY845...
+  TAG: 34ec0879c5b88be6f8f175124f94edcca2c9120e
+  TICK: 707e7fb33999644426529c4bc8f9e11350b1ee64
+  TYPE: KT200
+  VERSION: 20230327
+============================================================
+
+[2025-10-24 13:52:51 (UTC+02:00)] [Request]
+Address: http://kt.tuner-tools.com/weblm/activation.php?code=HA38-KOQS-H44K&hwid=eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ%3d&hash=EiC3LPVTq6Jd+mwRMSRJdb4DVtc%3d
+
+[2025-10-24 13:52:52 (UTC+02:00)] [Response]
+Body: OK
+InVArVMqUU8A0sABR3S9Fl9uDzfdTZbs8fNjzlj9XZ9PqST9rSXpZrJrkqhCAHOULuuMP9/PJypOdgqB3fj1etWNV0H0KfoqvOcB8OwhgLPwThBLmh/tafuHWn3tvXfzbOc0CrYo75hkY5vkMKoQQU8IhVOpXaSwXffVMLKRs8A0PzjXXr9iHL0xEA9ggiTpDpHAMDW/Kckw4IdXe6Ey3z6QSiLhKABt/ZG069/RoGfw+FkUWdsgqwGxKYm8ayWY1CX/8/thHt6l37MNJ1tByGePSR+TmxCJDfeh00wYZWAxrbbVSxY4gSQ0VOIxsfip8Rv7G5Jbs+q9DuQG+zSd2g==
+
+[2025-10-24 13:52:52 (UTC+02:00)] [Request]
+Address: http://kt.tuner-tools.com/handshake.php?id=eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ%3d&len=45&name=SIIQqX746Kje8bx1waWQR-qT7qnt99YS8A8K3ErvCHVOYwWzZRkGlbDx2o6dJsHtWcKUpQI6UKw50b5g1ImhwjQgLH12rY9imjOtYdCsnFq7gUP5lm3g_2D8pCh1flQdk_cCO9xrlKH9ma7JsUncGRn15_tFRnS0pgct_TuMDh8MZ8SRtqoh86hNcu3CneZDApkCHKjJtLFMNFOmFQ8w9fxXrqRwJbfl5zk46NEedQjPk_J1TzzZaH_SBVIty-_DntW6k0vDxOwYyd4gyKAqsXejs2gynVc9_6SpgtyKmGSRf0xV874jbkLc_5iEhkWMfIzqWufUxWfcKfexGLvirQ==&vers=20230327&type=KT200
+
+[2025-10-24 13:52:53 (UTC+02:00)] [Response]
+Body: OK
+
+[2025-10-24 13:53:03 (UTC+02:00)] [Request]
+Address: http://kt.tuner-tools.com/init2024.php?name=NWNlMGQzOTQzYTg2ZTkxMTVjZTBkMzk0M2E4NmU5MTE&id=eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ%3d&len=45
+
+[2025-10-24 13:53:03 (UTC+02:00)] [Response]
+Body: f7rxZIHmw90FF2Opetjjt3D16Ey_gJG2AMTkyNTE0MjkxNTI4MDQwOA||22
+
+[2025-10-24 13:53:04 (UTC+02:00)] [Request]
+Address: http://kt.tuner-tools.com/weblm/activation.php?code=MDQV-V95U-9U2O&hwid=eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ%3d&hash=NCIQlM9YvygHQXIoE2YF3vB5UCY%3d
+
+[2025-10-24 13:53:04 (UTC+02:00)] [Response]
+Body: OK
+mDZYwbTKM4rSobnrarM4P105r5Ha9bt/Db4NqB0ZSkTY845DdES021RRH0nFRbeHUK3PXj25YNaa5u4ZvO3GYfikeWemxFh6A2HUbKqyZ/+jryr0NFkp6qj8mLTnNuRxKJ5D7VUkWr4xxIIU/6FRmOwNKVFQfkXs7yhu7ukl4HHfv+7TB+uX/cNUxolurVSUEBDjcJKSftKu9mIIqgNisZjEYpVnCWk4s5ONUQhpibmBdOBGu6wmhZFw0MlHgQvAsq7vC54hj6M0mKF+No8k4+1Sq2zgHMkMtSAshqptH4ynhZSsTTmyjwWTmY0wjIUuyrGBV/a240iWiL/CdmMiyg==
+
+[2025-10-24 13:53:45 (UTC+02:00)] [Request]
+Address: http://kt.tuner-tools.com/chatgpt.php?name=NTdlYzY2YjA3ZTkyOGE2YzkzNWMzYjcyZWFiYjY4ZDM&tag=34ec0879c5b88be6f8f175124f94edcca2c9120e
+
+[2025-10-24 13:53:45 (UTC+02:00)] [Response]
+Body: 08d670892e0b4537001225aac1cfc39c4010cbbb
+
+[2025-10-24 13:53:45 (UTC+02:00)] [Request]
+Address: http://kt.tuner-tools.com/comm2024.php?name=eAaMKYle3qH7CFvirtZHTmqIklg+ZI0fckRZB47YzQQ%3d&tick=707e7fb33999644426529c4bc8f9e11350b1ee64
+
+[2025-10-24 13:53:46 (UTC+02:00)] [Response]
+Body: JrZ_EB-alf5F0isyQWVdWrTQf2Irn-CovH7jZtug0rLm2g2hNP2EyKkhvc6AsGdsXLon5B2j0ply5th9kFROoXU0iFpaQxOnHe5_i_uK_qBKsm3VkwouAZFSctLDs8ElL6tZxN5Z6osbK6-fuXzHZVlancrplaN2bpsSzGKAfdr3e04zoxpLSYO9oxvgwqAOC3KIEmdGchii1E3bmHlNiENU-M60MBGMBdiytDetQcygvQtpKMcfhURhvN-bh0RnsSu-koZkObucLAVciO1J7TupnTawHuhMoGyv7k0dA_P1bjU0vzYExiRpz2tQrG4oqtqpAEZc6H4IGrxE4RYmhA

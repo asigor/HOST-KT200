@@ -1,0 +1,105 @@
+
+  "hmac": {
+    "algorithm": "HMAC-SHA1",
+    "key_b64": "YjFrMmQ5czQ=",
+    "client_hash_format": "base64(sha1(code|HWID|timestamp))",
+    "server_signature_payload": "hwid+code",
+    "server_signature_output": "base64(HMAC_SHA1(key, hwid+code))"
+  },
+  "activation1": {
+    "request_template": {
+      "endpoint": "/weblm/activation.php",
+      "method": "GET",
+      "params": {
+        "code": "HA38-KOQS-H44K",
+        "hwid": "${HWID_B64_B64_URLENC}",
+        "hash": "${BASE64_SHA1(code|HWID|timestamp)}",
+        "timestamp": "${YYYY-MM-DD HH:MM:SS}"
+      }
+    },
+    "response": {
+      "status": "OK",
+      "license_valid": true,
+      "guid": "${GUID}",
+      "timestamp": "${YYYY-MM-DD HH:MM:SS}",
+      "signature": "${BASE64(HMAC_SHA1('b1k2d9s4', hwid+code))}"
+    }
+  },
+  "handshake": {
+    "request_template": {
+      "endpoint": "/handshake.php",
+      "method": "GET",
+      "params": {
+        "id": "${GUID_OR_HWID}",
+        "len": 45,
+        "name": "${NAME1}",
+        "vers": "20230327",
+        "type": "KT200"
+      }
+    },
+    "response": "OK"
+  },
+  "init2024": {
+    "request_template": {
+      "endpoint": "/init2024.php",
+      "method": "GET",
+      "params": {
+        "name": "${NAME2}",
+        "id": "${GUID}",
+        "len": 45,
+        "timestamp": "${YYYY-MM-DD HH:MM:SS}"
+      }
+    },
+    "response_blob_json": {
+      "init_code": "INIT-FAKE-2024",
+      "serial": "KT-33AB90FF",
+      "timestamp": "${YYYY-MM-DD HH:MM:SS}",
+      "signature": "${BASE64_SIGNATURE}",
+      "status": "OK"
+    },
+    "encoding": "base64(xor(0x55, utf8(json)))"
+  },
+  "activation2": {
+    "request_template": {
+      "endpoint": "/weblm/activation.php",
+      "method": "GET",
+      "params": {
+        "code": "${RANDOM_CODE_XXXX-XXXX-XXXX}",
+        "hwid": "${HWID_B64_B64_URLENC}",
+        "hash": "${BASE64_SHA1(code|HWID|timestamp)}",
+        "timestamp": "${YYYY-MM-DD HH:MM:SS}"
+      }
+    },
+    "response": {
+      "status": "OK",
+      "license_valid": true,
+      "guid": "${GUID}",
+      "timestamp": "${YYYY-MM-DD HH:MM:SS}",
+      "signature": "${BASE64(HMAC_SHA1('b1k2d9s4', hwid+code))}"
+    }
+  },
+  "chatgpt": {
+    "request_template": {
+      "endpoint": "/chatgpt.php",
+      "method": "GET",
+      "params": {
+        "name": "${NAME}",
+        "tag": "${TAG}"
+      }
+    },
+    "response": "OK"
+  },
+  "comm2024": {
+    "request_template": {
+      "endpoint": "/comm2024.php",
+      "method": "GET",
+      "params": {
+        "name": "${NAME}",
+        "tick": "${TICK}"
+      }
+    },
+    "response": {
+      "status": "OK"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+[{{TIME_ACTIVATION1}}] [Request]
+Address: http://{{HOST}}/weblm/activation.php?code={{CODE1}}&hwid={{HWID}}&hash={{HASH1}}
+
+[{{TIME_RESPONSE1}}] [Response]
+Body: {{RESPONSE1}}
+
+[{{TIME_HANDSHAKE}}] [Request]
+Address: http://{{HOST}}/handshake.php?id={{HWID}}&len={{LEN}}&name={{ENCODEDNAME}}&vers={{VERSION}}&type={{TYPE}}
+
+[{{TIME_RESPONSE2}}] [Response]
+Body: {{RESPONSE2}}
+
+[{{TIME_INIT}}] [Request]
+Address: http://{{HOST}}/init2024.php?name={{NAME1}}&id={{HWID}}&len={{LEN}}
+
+[{{TIME_RESPONSE3}}] [Response]
+Body: {{RESPONSE3}}
+
+[{{TIME_ACTIVATION2}}] [Request]
+Address: http://{{HOST}}/weblm/activation.php?code={{CODE2}}&hwid={{HWID}}&hash={{HASH2}}
+
+[{{TIME_RESPONSE4}}] [Response]
+Body: {{RESPONSE4}}
+
+[{{TIME_CHATGPT}}] [Request]
+Address: http://{{HOST}}/chatgpt.php?name={{GPTNAME}}&tag={{TAG}}
+
+[{{TIME_RESPONSE5}}] [Response]
+Body: {{GPT_RESPONSE}}
+
+[{{TIME_COMM2024}}] [Request]
+Address: http://{{HOST}}/comm2024.php?name={{HWID}}&tick={{TICK}}
+
+[{{TIME_RESPONSE6}}] [Response]
+Body: {{COMM_RESPONSE}}

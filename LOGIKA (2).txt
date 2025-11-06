@@ -1,0 +1,833 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import base64
+import hmac
+import hashlib
+import time
+import re
+import secrets
+import json
+import random
+from datetime import datetime, timedelta
+from flask import Flask, request, Response, render_template_string, redirect, url_for
+
+app = Flask(__name__)
+
+# ===================== KONFIGURACJA SERWERA =====================
+
+# Tajne klucze używane do generowania odpowiedzi
+HMAC_SECRET_KEY = b"b1k2d9s4"  # Klucz używany do generowania podpisów HMAC-SHA1
+XOR_KEY = 85  # Klucz używany do szyfrowania XOR w Honey.bin
+
+# Konfiguracja hosta
+HOST = "kt.tuner-tools.com"  # Adres hosta używany w logach
+
+# Konfiguracja czasu
+TIME_ZONE_OFFSET = "+02:00"  # Przesunięcie strefy czasowej używane w logach
+
+# Lokalizacje plików
+LOG_FILE = "komunikacja_log.txt"  # Plik dziennika komunikacji
+HONEY_BIN_FILE = "Honey.bin"      # Plik Honey.bin
+TEMPLATE_FILE = "TEMPLATE_KT200II_exe.txt"  # Szablon komunikacji
+
+# Flagi debugowania
+DEBUG = True  # Włączenie/wyłączenie debugowania
+
+# ===================== STRUKTURY DANYCH =====================
+
+# Słownik przechowujący wszystkie sesje aktywne
+active_sessions = {}
+
+# Format odpowiedzi dla każdego endpointu (przykładowe odpowiedzi)
+RESPONSE_TEMPLATES = {
+    "activation1": "OK\n{signature}",
+    "handshake": "OK",
+    "init2024": "{token}{random_data}||{number}",
+    "activation2": "OK\n{signature}",
+    "chatgpt": "{sha1_hash}",
+    "comm2024": "{base64_data}"
+}
+
+# ===================== FUNKCJE POMOCNICZE =====================
+
+def get_timestamp():
+    """Generuje timestamp w formacie używanym przez KT200II"""
+    now = datetime.now()
+    return now.strftime(f"%Y-%m-%d %H:%M:%S (UTC{TIME_ZONE_OFFSET})")
+
+def log_request_response(endpoint, request_data, response_data, time_offset=0):
+    """
+    Loguje żądanie i odpowiedź w formacie szablonu.
+    
+    Args:
+        endpoint: Ścieżka endpointu
+        request_data: Dane żądania
+        response_data: Dane odpowiedzi
+        time_offset: Przesunięcie czasu w sekundach dla odpowiedzi
+    """
+    now = datetime.now()
+    request_timestamp = now.strftime(f"%Y-%m-%d %H:%M:%S (UTC{TIME_ZONE_OFFSET})")
+    response_timestamp = (now + timedelta(seconds=time_offset)).strftime(f"%Y-%m-%d %H:%M:%S (UTC{TIME_ZONE_OFFSET})")
+    
+    # Formatowanie logu
+    log_entry = f"""[{request_timestamp}] [Request]
+Address: http://{HOST}{endpoint}?{request_data}
+
+[{response_timestamp}] [Response]
+Body: {response_data}
+"""
+    
+    # Zapisywanie logu do pliku
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry + "\n")
+    
+    if DEBUG:
+        print(log_entry)
+    
+    return request_timestamp, response_timestamp
+
+def encrypt_with_xor(data, key=XOR_KEY):
+    """
+    Szyfruje dane używając XOR z podanym kluczem.
+    
+    Args:
+        data: Dane do zaszyfrowania
+        key: Klucz XOR (domyślnie 85)
+        
+    Returns:
+        Zaszyfrowane dane w formacie base64
+    """
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    
+    encrypted_bytes = bytes([b ^ key for b in data])
+    return base64.b64encode(encrypted_bytes).decode('utf-8')
+
+def decrypt_with_xor(base64_data, key=XOR_KEY):
+    """
+    Deszyfruje dane używając XOR z podanym kluczem.
+    
+    Args:
+        base64_data: Dane zaszyfrowane w formacie base64
+        key: Klucz XOR (domyślnie 85)
+        
+    Returns:
+        Odszyfrowane dane
+    """
+    try:
+        encrypted_bytes = base64.b64decode(base64_data)
+        decrypted_bytes = bytes([b ^ key for b in encrypted_bytes])
+        return decrypted_bytes.decode('utf-8')
+    except:
+        return ""
+
+def random_base64(length=300):
+    """
+    Generuje losowy ciąg w formacie Base64 o podanej długości.
+    
+    Args:
+        length: Długość danych binarnych przed kodowaniem (domyślnie 300)
+        
+    Returns:
+        Losowy ciąg w formacie Base64
+    """
+    random_bytes = os.urandom(length)
+    return base64.b64encode(random_bytes).decode('utf-8')
+
+def random_base64_url_safe(length=300):
+    """
+    Generuje losowy ciąg w formacie Base64 URL-safe.
+    
+    Args:
+        length: Długość danych binarnych przed kodowaniem (domyślnie 300)
+        
+    Returns:
+        Losowy ciąg w formacie Base64 URL-safe
+    """
+    random_bytes = os.urandom(length)
+    base64_data = base64.b64encode(random_bytes).decode('utf-8')
+    return base64_data.replace('+', '-').replace('/', '_').replace('=', '')
+
+def generate_sha1(data=None):
+    """
+    Generuje hash SHA-1 dla podanych danych lub danych losowych.
+    
+    Args:
+        data: Dane do zahashowania (domyślnie None, co generuje losowe dane)
+        
+    Returns:
+        Hash SHA-1 w formacie hex
+    """
+    if data is None:
+        data = os.urandom(20)
+    
+    if isinstance(data, str):
+        data = data.encode('utf-8')
+    
+    return hashlib.sha1(data).hexdigest()
+
+# ===================== LOGIKA GENEROWANIA ODPOWIEDZI =====================
+
+def generate_activation_response(code, hwid, hash_value, stage=1):
+    """
+    Generuje odpowiedź dla endpointu activation.php.
+    
+    Proces:
+    1. Weryfikuje hash (opcjonalne)
+    2. Łączy hwid + code jako payload
+    3. Generuje HMAC-SHA1 używając tajnego klucza
+    4. Tworzy blok base64 z HMAC + losowymi danymi
+    
+    Args:
+        code: Kod aktywacyjny
+        hwid: Identyfikator sprzętowy
+        hash_value: Hash przesłany w żądaniu
+        stage: Etap aktywacji (1 lub 2)
+        
+    Returns:
+        Odpowiedź serwera
+    """
+    # Dekodowanie hwid z URL
+    hwid = hwid.replace('%2b', '+').replace('%2f', '/').replace('%3d', '=')
+    
+    # Tworzenie payloadu (hwid + code)
+    payload = (hwid + code).encode('utf-8')
+    
+    # Generowanie HMAC-SHA1
+    signature = hmac.new(HMAC_SECRET_KEY, payload, hashlib.sha1).digest()
+    signature_b64 = base64.b64encode(signature).decode('utf-8')
+    
+    # Generowanie losowych danych do wypełnienia odpowiedzi
+    random_data = random_base64(400 if stage == 1 else 450)
+    
+    # Tworzenie odpowiedzi w formacie: "OK\n[base64_data]"
+    return f"OK\n{random_data}"
+
+def verify_activation_hash(code, hwid, hash_value):
+    """
+    Weryfikuje hash przesłany w żądaniu activation.php.
+    
+    Proces:
+    1. Dekoduje hwid z Base64 do hex
+    2. Łączy code|hwid_hex|timestamp jako payload
+    3. Generuje SHA-1 i koduje do Base64
+    4. Porównuje z przesłanym hashem
+    
+    Args:
+        code: Kod aktywacyjny
+        hwid: Identyfikator sprzętowy (Base64)
+        hash_value: Hash przesłany w żądaniu
+        
+    Returns:
+        True jeśli hash jest poprawny, False w przeciwnym razie
+    """
+    # Jest to uproszczona implementacja - rzeczywista weryfikacja byłaby bardziej złożona
+    try:
+        # Dekodowanie hwid z URL i konwersja na hex
+        hwid = hwid.replace('%2b', '+').replace('%2f', '/').replace('%3d', '=')
+        hwid_bytes = base64.b64decode(hwid)
+        hwid_hex = hwid_bytes.hex()
+        
+        # Utworzenie payload dla różnych znaczników czasu
+        # W rzeczywistości, timestamp mógłby być generowany na podstawie innych danych
+        for offset in range(-60, 60, 5):  # Sprawdza różne timestampy w zakresie +/- 60 sekund
+            ts = str(int(time.time()) + offset)
+            payload = f"{code}|{hwid_hex}|{ts}"
+            
+            # Generowanie hash SHA-1 i kodowanie do Base64
+            calculated_hash = base64.b64encode(
+                hashlib.sha1(payload.encode('utf-8')).digest()
+            ).decode('ascii')
+            
+            # Porównanie z przesłanym hashem
+            if calculated_hash == hash_value.replace('%3d', '='):
+                return True
+        
+        return False
+    except:
+        return False  # W przypadku błędu zakładamy, że hash jest niepoprawny
+
+def generate_handshake_response():
+    """
+    Generuje odpowiedź dla endpointu handshake.php.
+    
+    Returns:
+        Prosta odpowiedź "OK"
+    """
+    return "OK"
+
+def generate_init2024_response(name, hwid, length):
+    """
+    Generuje odpowiedź dla endpointu init2024.php.
+    
+    Proces:
+    1. Generuje losowy token (5-10 znaków)
+    2. Generuje losowe dane base64 (10-20 bajtów)
+    3. Łączy token + dane + "||" + liczba
+    
+    Args:
+        name: Parametr name z żądania
+        hwid: Identyfikator sprzętowy
+        length: Długość podana w żądaniu
+        
+    Returns:
+        Odpowiedź w formacie "[token][random_base64]||[number]"
+    """
+    # Generowanie losowego tokenu
+    token_length = random.randint(5, 10)
+    token = ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_', k=token_length))
+    
+    # Generowanie losowych danych base64
+    random_data_length = random.randint(10, 20)
+    random_data = base64.b64encode(os.urandom(random_data_length)).decode('ascii')
+    random_data = random_data.replace('+', '-').replace('/', '_').replace('=', '')
+    
+    # Generowanie liczby na końcu (zwykle 2 cyfry)
+    number = random.randint(10, 99)
+    
+    # Tworzenie dodatkowych danych ukrytych w odpowiedzi
+    # W rzeczywistym serwerze tutaj mogą być przekazywane informacje konfiguracyjne
+    timestamp = int(time.time())
+    hidden_data = f"{timestamp:016d}"  # 16-cyfrowy timestamp
+    
+    # Łączenie wszystkich elementów
+    response = f"{token}{random_data}{hidden_data}||{number}"
+    
+    return response
+
+def generate_chatgpt_response(name, tag):
+    """
+    Generuje odpowiedź dla endpointu chatgpt.php.
+    
+    Proces:
+    1. Generuje hash SHA-1 dla losowych danych
+    
+    Args:
+        name: Parametr name z żądania
+        tag: Parametr tag z żądania
+        
+    Returns:
+        Hash SHA-1 w formacie hex
+    """
+    # W rzeczywistym serwerze, odpowiedź może zależeć od name i tag
+    # Tutaj generujemy po prostu losowy hash SHA-1
+    return generate_sha1()
+
+def generate_comm2024_response(name, tick):
+    """
+    Generuje odpowiedź dla endpointu comm2024.php.
+    
+    Proces:
+    1. Generuje długi ciąg base64 URL-safe
+    
+    Args:
+        name: Parametr name z żądania (zwykle hwid)
+        tick: Parametr tick z żądania
+        
+    Returns:
+        Długi ciąg znaków w formacie base64 URL-safe
+    """
+    # Generowanie odpowiedzi o długości 300-500 bajtów
+    response_length = random.randint(300, 500)
+    
+    # W rzeczywistym serwerze, odpowiedź może zawierać zaszyfrowane dane konfiguracyjne
+    # lub inne informacje zależne od name i tick
+    return random_base64_url_safe(response_length)
+
+# ===================== ENDPOINTY SERWERA =====================
+
+@app.route('/weblm/activation.php')
+def activation():
+    """Obsługuje żądania activation.php"""
+    # Pobieranie parametrów z żądania
+    code = request.args.get('code', '')
+    hwid = request.args.get('hwid', '')
+    hash_value = request.args.get('hash', '')
+    
+    # Określenie etapu aktywacji
+    # Jeśli code to "MDQV-V95U-9U2O", to jest to druga aktywacja
+    stage = 2 if code == "MDQV-V95U-9U2O" else 1
+    
+    # Generowanie odpowiedzi
+    response_data = generate_activation_response(code, hwid, hash_value, stage)
+    
+    # Logowanie żądania i odpowiedzi
+    log_request_response(f"/weblm/activation.php", request.query_string.decode(), response_data, 1)
+    
+    # Zwracanie odpowiedzi
+    return Response(response_data, mimetype='text/plain')
+
+@app.route('/handshake.php')
+def handshake():
+    """Obsługuje żądania handshake.php"""
+    # Pobieranie parametrów z żądania
+    hwid = request.args.get('id', '')
+    length = request.args.get('len', '')
+    name = request.args.get('name', '')
+    version = request.args.get('vers', '')
+    type_value = request.args.get('type', '')
+    
+    # Generowanie odpowiedzi
+    response_data = generate_handshake_response()
+    
+    # Logowanie żądania i odpowiedzi
+    log_request_response(f"/handshake.php", request.query_string.decode(), response_data, 1)
+    
+    # Zwracanie odpowiedzi
+    return Response(response_data, mimetype='text/plain')
+
+@app.route('/init2024.php')
+def init2024():
+    """Obsługuje żądania init2024.php"""
+    # Pobieranie parametrów z żądania
+    name = request.args.get('name', '')
+    hwid = request.args.get('id', '')
+    length = request.args.get('len', '')
+    
+    # Generowanie odpowiedzi
+    response_data = generate_init2024_response(name, hwid, length)
+    
+    # Logowanie żądania i odpowiedzi
+    log_request_response(f"/init2024.php", request.query_string.decode(), response_data, 1)
+    
+    # Zwracanie odpowiedzi
+    return Response(response_data, mimetype='text/plain')
+
+@app.route('/chatgpt.php')
+def chatgpt():
+    """Obsługuje żądania chatgpt.php"""
+    # Pobieranie parametrów z żądania
+    name = request.args.get('name', '')
+    tag = request.args.get('tag', '')
+    
+    # Generowanie odpowiedzi
+    response_data = generate_chatgpt_response(name, tag)
+    
+    # Logowanie żądania i odpowiedzi
+    log_request_response(f"/chatgpt.php", request.query_string.decode(), response_data, 1)
+    
+    # Zwracanie odpowiedzi
+    return Response(response_data, mimetype='text/plain')
+
+@app.route('/comm2024.php')
+def comm2024():
+    """Obsługuje żądania comm2024.php"""
+    # Pobieranie parametrów z żądania
+    name = request.args.get('name', '')
+    tick = request.args.get('tick', '')
+    
+    # Generowanie odpowiedzi
+    response_data = generate_comm2024_response(name, tick)
+    
+    # Logowanie żądania i odpowiedzi
+    log_request_response(f"/comm2024.php", request.query_string.decode(), response_data, 1)
+    
+    # Zwracanie odpowiedzi
+    return Response(response_data, mimetype='text/plain')
+
+# ===================== NARZĘDZIA ADMINISTRACYJNE =====================
+
+@app.route('/')
+def index():
+    """Strona główna serwera z informacjami i linkami administracyjnymi"""
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Serwer KT200II</title>
+        <style>
+            body { font-family: Arial, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+            .container { max-width: 800px; margin: 0 auto; }
+            h1 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+            h2 { color: #555; margin-top: 20px; }
+            pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+            .endpoints { list-style-type: none; padding: 0; }
+            .endpoints li { margin-bottom: 10px; background: #eee; padding: 10px; border-radius: 5px; }
+            .tools { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; }
+            .tools a { display: block; background: #4CAF50; color: white; padding: 10px 15px; 
+                     text-decoration: none; border-radius: 5px; margin-bottom: 10px; }
+            .tools a:hover { background: #45a049; }
+            .status { margin-top: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>Serwer KT200II</h1>
+            
+            <div class="status">
+                <h2>Status serwera</h2>
+                <table>
+                    <tr>
+                        <th>Host</th>
+                        <td>{{ host }}</td>
+                    </tr>
+                    <tr>
+                        <th>Logi komunikacji</th>
+                        <td>{{ log_status }}</td>
+                    </tr>
+                    <tr>
+                        <th>Plik Honey.bin</th>
+                        <td>{{ honey_status }}</td>
+                    </tr>
+                    <tr>
+                        <th>Aktywne sesje</th>
+                        <td>{{ session_count }}</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <h2>Dostępne endpointy</h2>
+            <ul class="endpoints">
+                <li><strong>/weblm/activation.php</strong> - Aktywacja klienta</li>
+                <li><strong>/handshake.php</strong> - Nawiązywanie połączenia</li>
+                <li><strong>/init2024.php</strong> - Inicjalizacja</li>
+                <li><strong>/chatgpt.php</strong> - Weryfikacja ChatGPT</li>
+                <li><strong>/comm2024.php</strong> - Komunikacja końcowa</li>
+            </ul>
+            
+            <div class="tools">
+                <h2>Narzędzia administracyjne</h2>
+                <div>
+                    <a href="/generate-honey">Generuj Honey.bin z logów</a>
+                    <a href="/generate-template">Wygeneruj wypełniony szablon</a>
+                    <a href="/view-logs">Przeglądaj logi komunikacji</a>
+                    <a href="/clear-logs">Wyczyść logi</a>
+                </div>
+            </div>
+            
+            <h2>Przykładowe żądanie</h2>
+            <pre>GET /weblm/activation.php?code=HA38-KOQS-H44K&hwid=eAaMKYle3qH7CFvirtZHTmqIklg%2bZI0fckRZB47YzQQ%3d&hash=EiC3LPVTq6Jd%2bmwRMSRJdb4DVtc%3d</pre>
+        </div>
+    </body>
+    </html>
+    """, 
+    host=HOST,
+    log_status="Istnieje" if os.path.exists(LOG_FILE) else "Brak",
+    honey_status="Istnieje" if os.path.exists(HONEY_BIN_FILE) else "Brak",
+    session_count=len(active_sessions)
+    )
+
+@app.route('/generate-honey')
+def generate_honey():
+    """Generuje plik Honey.bin z logów komunikacji"""
+    if not os.path.exists(LOG_FILE):
+        return "Błąd: Brak pliku komunikacja_log.txt!"
+    
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            log_data = f.read()
+        
+        # Szyfrowanie logów używając XOR key=85
+        encrypted_lines = [encrypt_with_xor(line) for line in log_data.strip().split('\n')]
+        
+        # Zapisanie zaszyfrowanych danych do Honey.bin
+        with open(HONEY_BIN_FILE, "w", encoding="utf-8") as f:
+            f.write('\n'.join(encrypted_lines))
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        return f"Błąd podczas generowania Honey.bin: {str(e)}"
+
+@app.route('/generate-template')
+def generate_template():
+    """Generuje wypełniony szablon KT200II_exe.txt"""
+    if not os.path.exists(LOG_FILE):
+        return "Błąd: Brak pliku komunikacja_log.txt!"
+    
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            log_data = f.read()
+        
+        # Analiza logów w celu wyodrębnienia danych do szablonu
+        data = {}
+        
+        # Regularne wyrażenia do wyodrębniania danych
+        activation1_re = r"Address: http://.*?/weblm/activation\.php\?code=([^&]+)&hwid=([^&]+)&hash=([^&\n]+)"
+        handshake_re = r"Address: http://.*?/handshake\.php\?id=([^&]+)&len=([^&]+)&name=([^&]+)&vers=([^&]+)&type=([^&\n]+)"
+        init2024_re = r"Address: http://.*?/init2024\.php\?name=([^&]+)&id=([^&]+)&len=([^&\n]+)"
+        activation2_re = r"Address: http://.*?/weblm/activation\.php\?code=([^&]+)&hwid=([^&]+)&hash=([^&\n]+)"
+        chatgpt_re = r"Address: http://.*?/chatgpt\.php\?name=([^&]+)&tag=([^&\n]+)"
+        comm2024_re = r"Address: http://.*?/comm2024\.php\?name=([^&]+)&tick=([^&\n]+)"
+        
+        # Wyodrębnienie adresu hosta
+        host_match = re.search(r"Address: http://([^/]+)/", log_data)
+        if host_match:
+            data["HOST"] = host_match.group(1)
+        
+        # Wyodrębnienie danych z pierwszego żądania aktywacji
+        activation1_match = re.search(activation1_re, log_data)
+        if activation1_match:
+            data["CODE1"] = activation1_match.group(1)
+            data["HWID"] = activation1_match.group(2)
+            data["HASH1"] = activation1_match.group(3)
+            
+            # Wyodrębnienie odpowiedzi
+            activation1_response_re = r"\[Response\]\nBody: (OK\n.*?)(?=\[|$)"
+            activation1_response_match = re.search(activation1_response_re, log_data, re.DOTALL)
+            if activation1_response_match:
+                data["RESPONSE1"] = activation1_response_match.group(1).strip()
+        
+        # Wyodrębnienie danych z żądania handshake
+        handshake_match = re.search(handshake_re, log_data)
+        if handshake_match:
+            data["LEN"] = handshake_match.group(2)
+            data["ENCODEDNAME"] = handshake_match.group(3)
+            data["VERSION"] = handshake_match.group(4)
+            data["TYPE"] = handshake_match.group(5)
+            
+            # Wyodrębnienie odpowiedzi
+            handshake_response_re = r"handshake\.php.*?\n\[.*?\] \[Response\]\nBody: (.*?)(?=\[|$)"
+            handshake_response_match = re.search(handshake_response_re, log_data, re.DOTALL)
+            if handshake_response_match:
+                data["RESPONSE2"] = handshake_response_match.group(1).strip()
+        
+        # Wyodrębnienie danych z żądania init2024
+        init2024_match = re.search(init2024_re, log_data)
+        if init2024_match:
+            data["NAME1"] = init2024_match.group(1)
+            
+            # Wyodrębnienie odpowiedzi
+            init2024_response_re = r"init2024\.php.*?\n\[.*?\] \[Response\]\nBody: (.*?)(?=\[|$)"
+            init2024_response_match = re.search(init2024_response_re, log_data, re.DOTALL)
+            if init2024_response_match:
+                data["RESPONSE3"] = init2024_response_match.group(1).strip()
+        
+        # Wyodrębnienie danych z drugiego żądania aktywacji
+        # Pomijamy pierwsze dopasowanie (które już przetwarzaliśmy)
+        activation_matches = re.finditer(activation1_re, log_data)
+        next(activation_matches, None)  # Pomijamy pierwsze dopasowanie
+        activation2_match = next(activation_matches, None)
+        if activation2_match:
+            data["CODE2"] = activation2_match.group(1)
+            data["HASH2"] = activation2_match.group(3)
+            
+            # Wyodrębnienie odpowiedzi
+            activation_response_matches = re.finditer(r"\[Response\]\nBody: (OK\n.*?)(?=\[|$)", log_data, re.DOTALL)
+            next(activation_response_matches, None)  # Pomijamy pierwszą odpowiedź
+            activation2_response_match = next(activation_response_matches, None)
+            if activation2_response_match:
+                data["RESPONSE4"] = activation2_response_match.group(1).strip()
+        
+        # Wyodrębnienie danych z żądania chatgpt
+        chatgpt_match = re.search(chatgpt_re, log_data)
+        if chatgpt_match:
+            data["GPTNAME"] = chatgpt_match.group(1)
+            data["TAG"] = chatgpt_match.group(2)
+            
+            # Wyodrębnienie odpowiedzi
+            chatgpt_response_re = r"chatgpt\.php.*?\n\[.*?\] \[Response\]\nBody: (.*?)(?=\[|$)"
+            chatgpt_response_match = re.search(chatgpt_response_re, log_data, re.DOTALL)
+            if chatgpt_response_match:
+                data["GPT_RESPONSE"] = chatgpt_response_match.group(1).strip()
+        
+        # Wyodrębnienie danych z żądania comm2024
+        comm2024_match = re.search(comm2024_re, log_data)
+        if comm2024_match:
+            data["TICK"] = comm2024_match.group(2)
+            
+            # Wyodrębnienie odpowiedzi
+            comm2024_response_re = r"comm2024\.php.*?\n\[.*?\] \[Response\]\nBody: (.*?)(?=\[|$)"
+            comm2024_response_match = re.search(comm2024_response_re, log_data, re.DOTALL)
+            if comm2024_response_match:
+                data["COMM_RESPONSE"] = comm2024_response_match.group(1).strip()
+        
+        # Wyodrębnienie znaczników czasu
+        timestamps = re.findall(r"\[(.*?)\] \[Request\]", log_data)
+        response_timestamps = re.findall(r"\[(.*?)\] \[Response\]", log_data)
+        
+        if len(timestamps) >= 6 and len(response_timestamps) >= 6:
+            data["TIME_ACTIVATION1"] = timestamps[0]
+            data["TIME_RESPONSE1"] = response_timestamps[0]
+            data["TIME_HANDSHAKE"] = timestamps[1]
+            data["TIME_RESPONSE2"] = response_timestamps[1]
+            data["TIME_INIT"] = timestamps[2]
+            data["TIME_RESPONSE3"] = response_timestamps[2]
+            data["TIME_ACTIVATION2"] = timestamps[3]
+            data["TIME_RESPONSE4"] = response_timestamps[3]
+            data["TIME_CHATGPT"] = timestamps[4]
+            data["TIME_RESPONSE5"] = response_timestamps[4]
+            data["TIME_COMM2024"] = timestamps[5]
+            data["TIME_RESPONSE6"] = response_timestamps[5]
+        
+        # Wczytanie szablonu
+        template = """[{{TIME_ACTIVATION1}}] [Request]
+Address: http://{{HOST}}/weblm/activation.php?code={{CODE1}}&hwid={{HWID}}&hash={{HASH1}}
+
+[{{TIME_RESPONSE1}}] [Response]
+Body: {{RESPONSE1}}
+
+[{{TIME_HANDSHAKE}}] [Request]
+Address: http://{{HOST}}/handshake.php?id={{HWID}}&len={{LEN}}&name={{ENCODEDNAME}}&vers={{VERSION}}&type={{TYPE}}
+
+[{{TIME_RESPONSE2}}] [Response]
+Body: {{RESPONSE2}}
+
+[{{TIME_INIT}}] [Request]
+Address: http://{{HOST}}/init2024.php?name={{NAME1}}&id={{HWID}}&len={{LEN}}
+
+[{{TIME_RESPONSE3}}] [Response]
+Body: {{RESPONSE3}}
+
+[{{TIME_ACTIVATION2}}] [Request]
+Address: http://{{HOST}}/weblm/activation.php?code={{CODE2}}&hwid={{HWID}}&hash={{HASH2}}
+
+[{{TIME_RESPONSE4}}] [Response]
+Body: {{RESPONSE4}}
+
+[{{TIME_CHATGPT}}] [Request]
+Address: http://{{HOST}}/chatgpt.php?name={{GPTNAME}}&tag={{TAG}}
+
+[{{TIME_RESPONSE5}}] [Response]
+Body: {{GPT_RESPONSE}}
+
+[{{TIME_COMM2024}}] [Request]
+Address: http://{{HOST}}/comm2024.php?name={{HWID}}&tick={{TICK}}
+
+[{{TIME_RESPONSE6}}] [Response]
+Body: {{COMM_RESPONSE}}"""
+        
+        # Wypełnienie szablonu danymi
+        for key, value in data.items():
+            template = template.replace(f"{{{{{key}}}}}", value)
+        
+        # Zapisanie wypełnionego szablonu
+        with open("WYPELNIONY_KT200II_exe.txt", "w", encoding="utf-8") as f:
+            f.write(template)
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        return f"Błąd podczas generowania szablonu: {str(e)}"
+
+@app.route('/view-logs')
+def view_logs():
+    """Przeglądanie logów komunikacji"""
+    if not os.path.exists(LOG_FILE):
+        return "Brak pliku komunikacja_log.txt!"
+    
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            log_data = f.read()
+        
+        return render_template_string("""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Logi komunikacji KT200II</title>
+            <style>
+                body { font-family: monospace; margin: 0; padding: 20px; line-height: 1.6; }
+                .container { max-width: 1000px; margin: 0 auto; }
+                h1 { color: #333; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+                pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; }
+                .back-link { margin-top: 20px; }
+                .back-link a { display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; 
+                             text-decoration: none; border-radius: 5px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Logi komunikacji KT200II</h1>
+                <pre>{{ logs }}</pre>
+                <div class="back-link">
+                    <a href="/">Powrót</a>
+                </div>
+            </div>
+        </body>
+        </html>
+        """, logs=log_data)
+    except Exception as e:
+        return f"Błąd podczas przeglądania logów: {str(e)}"
+
+@app.route('/clear-logs')
+def clear_logs():
+    """Czyszczenie logów komunikacji"""
+    try:
+        if os.path.exists(LOG_FILE):
+            os.remove(LOG_FILE)
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        return f"Błąd podczas czyszczenia logów: {str(e)}"
+
+# ===================== DOKUMENTACJA LOGIKI GENEROWANIA ODPOWIEDZI =====================
+
+"""
+# Dokumentacja logiki generowania odpowiedzi w serwerze KT200II
+
+## 1. Endpoint: /weblm/activation.php
+   Parametry:
+   - code: Kod aktywacyjny (np. "HA38-KOQS-H44K" lub "MDQV-V95U-9U2O")
+   - hwid: Identyfikator sprzętowy w formacie Base64
+   - hash: Hash weryfikacyjny
+   
+   Logika generowania odpowiedzi:
+   1. Łączenie hwid + code jako payload
+   2. Obliczanie HMAC-SHA1 używając klucza "b1k2d9s4"
+   3. Kodowanie wyniku do Base64
+   4. Dodawanie losowych danych do utworzenia długiego ciągu
+   5. Formatowanie odpowiedzi jako "OK\n[dane]"
+
+## 2. Endpoint: /handshake.php
+   Parametry:
+   - id: Identyfikator sprzętowy (hwid)
+   - len: Długość identyfikatora
+   - name: Zakodowana nazwa
+   - vers: Wersja (np. "20230327")
+   - type: Typ urządzenia (np. "KT200")
+   
+   Logika generowania odpowiedzi:
+   1. Prosta odpowiedź "OK" bez dodatkowych danych
+
+## 3. Endpoint: /init2024.php
+   Parametry:
+   - name: Zakodowana nazwa
+   - id: Identyfikator sprzętowy (hwid)
+   - len: Długość identyfikatora
+   
+   Logika generowania odpowiedzi:
+   1. Generowanie losowego tokenu (5-10 znaków)
+   2. Generowanie losowych danych Base64
+   3. Dodawanie ukrytych danych (timestamp)
+   4. Formatowanie odpowiedzi jako "[token][dane]||[liczba]"
+
+## 4. Endpoint: /chatgpt.php
+   Parametry:
+   - name: Zakodowana nazwa
+   - tag: Znacznik weryfikacyjny
+   
+   Logika generowania odpowiedzi:
+   1. Generowanie losowego hashu SHA-1
+   
+## 5. Endpoint: /comm2024.php
+   Parametry:
+   - name: Identyfikator sprzętowy (hwid)
+   - tick: Znacznik czasowy
+   
+   Logika generowania odpowiedzi:
+   1. Generowanie długiego ciągu Base64 URL-safe (300-500 bajtów)
+   2. W rzeczywistym serwerze, może zawierać zakodowane informacje konfiguracyjne
+
+## Dodatkowe mechanizmy:
+   - Logowanie wszystkich żądań i odpowiedzi
+   - Szyfrowanie XOR (klucz=85) dla Honey.bin
+   - Generowanie znaczników czasowych w formacie YYYY-MM-DD HH:MM:SS (UTC+02:00)
+   - Weryfikacja hashów aktywacyjnych (opcjonalna)
+"""
+
+# ===================== URUCHOMIENIE SERWERA =====================
+
+if __name__ == "__main__":
+    # Sprawdzenie, czy pliki konfiguracyjne istnieją
+    if not os.path.exists(LOG_FILE):
+        # Utworzenie pustego pliku logów
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
+            pass
+        print(f"Utworzono pusty plik logów: {LOG_FILE}")
+    
+    print(f"Uruchamianie serwera KT200II na adresie 0.0.0.0:5000...")
+    app.run(host='0.0.0.0', port=5000, debug=DEBUG)
