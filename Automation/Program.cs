@@ -213,14 +213,14 @@ internal sealed class DashboardForm : Form
         Log("=== Koniec diagnostyki ===");
     }
 
-    private static readonly IReadOnlyDictionary<string, (string Executable, string PackageId)> ToolCatalog =
-        new Dictionary<string, (string Executable, string PackageId)>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, (string Executable, string PackageId, string[] Arguments)> ToolCatalog =
+        new Dictionary<string, (string Executable, string PackageId, string[] Arguments)>(StringComparer.OrdinalIgnoreCase)
         {
-            ["python"] = ("python", "Python.Python.3.12"),
-            ["nodejs"] = ("node", "OpenJS.NodeJS.LTS"),
-            ["java"] = ("java", "EclipseAdoptium.Temurin.21.JDK"),
-            ["go"] = ("go", "GoLang.Go"),
-            ["rust"] = ("rustc", "Rustlang.Rustup")
+            ["python"] = ("python", "Python.Python.3.12", ["--version"]),
+            ["nodejs"] = ("node", "OpenJS.NodeJS.LTS", ["--version"]),
+            ["java"] = ("java", "EclipseAdoptium.Temurin.21.JDK", ["-version"]),
+            ["go"] = ("go", "GoLang.Go", ["version"]),
+            ["rust"] = ("rustc", "Rustlang.Rustup", ["--version"])
         };
 
     private async Task CheckSelectedToolAsync()
@@ -237,7 +237,8 @@ internal sealed class DashboardForm : Form
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
-            start.ArgumentList.Add("--version");
+            foreach (var argument in definition.Arguments)
+                start.ArgumentList.Add(argument);
             using var process = Process.Start(start);
             if (process is null)
             {
