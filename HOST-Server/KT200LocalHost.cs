@@ -305,7 +305,7 @@ namespace HostKT200
         {
             return $"HTTP/1.1 200 OK\r\n" +
                    $"Content-Type: application/json; charset=utf-8\r\n" +
-                   $"Content-Length: {body.Length}\r\n" +
+                   $"Content-Length: {Encoding.UTF8.GetByteCount(body)}\r\n" +
                    $"Connection: close\r\n" +
                    $"\r\n" +
                    body;
