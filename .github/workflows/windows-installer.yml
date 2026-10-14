@@ -1,0 +1,93 @@
+name: Windows build, tests and installer
+
+on:
+  push:
+    branches:
+      - automation/windows-desktop-installer
+      - feature/programmer-tool-activator
+  pull_request:
+    branches:
+      - automation/windows-desktop-installer
+      - feature/programmer-tool-activator
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore desktop application
+        run: dotnet restore Automation/HOST-KT200.Automation.csproj
+
+      - name: Build desktop application
+        run: dotnet build Automation/HOST-KT200.Automation.csproj --configuration Release --no-restore
+
+      - name: Build existing LocalHost server
+        run: dotnet build LocalHost/LocalHost.csproj --configuration Release
+
+      - name: Publish desktop application (self-contained)
+        run: dotnet publish Automation/HOST-KT200.Automation.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/payload/app
+
+      - name: Publish server (self-contained)
+        run: dotnet publish LocalHost/LocalHost.csproj --configuration Release --runtime win-x64 --self-contained true -p:UseAppHost=true -o artifacts/payload/server
+
+      - name: Smoke-test LocalHost API
+        shell: pwsh
+        run: |
+          $server = Resolve-Path "artifacts/payload/server/LocalHost.exe"
+          $dataRoot = Join-Path $env:RUNNER_TEMP "host-kt200-smoke"
+          $port = 18080
+          $proc = Start-Process -FilePath $server -ArgumentList @("--port", "$port", "--root", "$dataRoot") -PassThru -WindowStyle Hidden
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Milliseconds 500
+              try {
+                $status = Invoke-RestMethod "http://127.0.0.1:$port/status" -TimeoutSec 2
+                $ready = $true
+                break
+              } catch {}
+              if ($proc.HasExited) { throw "LocalHost exited before HTTP became ready (exit $($proc.ExitCode))." }
+            }
+            if (-not $ready) { throw "LocalHost did not start within 15 seconds." }
+            if ($status.status -ne "RUNNING") { throw "Unexpected status payload: $($status | ConvertTo-Json -Compress)" }
+            $tools = Invoke-RestMethod "http://127.0.0.1:$port/tools" -TimeoutSec 3
+            if (-not $tools.available -or $tools.available.Count -lt 1) { throw "Tools endpoint returned no available tools." }
+            $config = Invoke-RestMethod "http://127.0.0.1:$port/config" -TimeoutSec 3
+            if ($config.mode -ne "offline") { throw "Config endpoint did not return offline mode." }
+            $activation = Invoke-RestMethod "http://127.0.0.1:$port/activate?tool=python&version=3.12" -TimeoutSec 3
+            if ($activation.success -ne $true) { throw "Activation endpoint failed: $($activation | ConvertTo-Json -Compress)" }
+            Write-Host "PASS: /status, /tools, /config and /activate"
+          }
+          finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
+          }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "Inno Setup compiler not found at $iscc" }
+          & $iscc "installer/HOST-KT200.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: HOST-KT200-Setup-win-x64
+          path: artifacts/HOST-KT200-Setup-win-x64.exe
+          if-no-files-found: error
+          retention-days: 30
