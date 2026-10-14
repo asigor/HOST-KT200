@@ -17,7 +17,7 @@ namespace LocalHost
         private static int _port = 8080;
         private static string _rootPath = Environment.ExpandEnvironmentVariables("%USERPROFILE%\\.localhost");
         private static Dictionary<string, string> _activeTools = new Dictionary<string, string>();
-        private static TcpListener _listener;
+        private static TcpListener _listener = null!;
         private static bool _isRunning = false;
 
         static async Task Main(string[] args)
@@ -103,11 +103,14 @@ namespace LocalHost
             {
                 try
                 {
-                    string request = await reader.ReadLineAsync();
-                    if (string.IsNullOrEmpty(request))
+                    string? request = await reader.ReadLineAsync();
+                    if (string.IsNullOrWhiteSpace(request))
                         return;
 
-                    string[] parts = request.Split(' ');
+                    string[] parts = request.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 2)
+                        return;
+
                     string method = parts[0];
                     string path = parts[1];
 
@@ -179,8 +182,8 @@ namespace LocalHost
                 int queryIndex = path.IndexOf('?');
                 string queryString = queryIndex >= 0 ? path.Substring(queryIndex + 1) : "";
                 var query = ParseQueryString(queryString);
-                query.TryGetValue("tool", out string tool);
-                query.TryGetValue("version", out string version);
+                query.TryGetValue("tool", out string? tool);
+                query.TryGetValue("version", out string? version);
 
                 if (string.IsNullOrWhiteSpace(tool))
                     return JsonError("Tool name required");
