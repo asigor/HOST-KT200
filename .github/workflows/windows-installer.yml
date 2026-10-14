@@ -69,6 +69,11 @@ jobs:
             $unknown = Invoke-RestMethod "http://127.0.0.1:$port/activate?tool=not-a-real-tool" -TimeoutSec 3
             if ($unknown.error -ne $true) { throw "Unsupported tool was not rejected: $($unknown | ConvertTo-Json -Compress)" }
 
+            $deactivated = Invoke-RestMethod "http://127.0.0.1:$port/deactivate?tool=python" -TimeoutSec 3
+            if ($deactivated.success -ne $true) { throw "Deactivation endpoint failed: $($deactivated | ConvertTo-Json -Compress)" }
+            $toolsAfterDeactivation = Invoke-RestMethod "http://127.0.0.1:$port/tools" -TimeoutSec 3
+            if ($toolsAfterDeactivation.active.PSObject.Properties.Name -contains "python") { throw "Deactivated tool remains in active list." }
+
             $secretPath = Join-Path $env:RUNNER_TEMP "host-kt200-secret.txt"
             Set-Content -Path $secretPath -Value "DO_NOT_EXPOSE" -NoNewline
             try {
@@ -79,7 +84,7 @@ jobs:
             finally {
               Remove-Item $secretPath -Force -ErrorAction SilentlyContinue
             }
-            Write-Host "PASS: /status, /tools, /config, /activate validation and path traversal rejection"
+            Write-Host "PASS: /status, /tools, /config, /activate, /deactivate and path traversal rejection"
           }
           finally {
             if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
