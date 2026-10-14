@@ -1,10 +1,6 @@
 name: Windows build, tests and installer
 
 on:
-  push:
-    branches:
-      - automation/windows-desktop-installer
-      - feature/programmer-tool-activator
   pull_request:
     branches:
       - automation/windows-desktop-installer
