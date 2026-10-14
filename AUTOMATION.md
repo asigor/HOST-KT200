@@ -7,7 +7,7 @@ This adds a Windows desktop control panel without replacing the existing `LocalH
 The panel can:
 - start and stop the packaged `LocalHost` process;
 - select a port and check the HTTP `/status` endpoint;
-- activate a tool through the existing `/activate?tool=...&version=...` endpoint;
+- activate a supported tool in the LocalHost registry through `/activate?tool=...&version=...` (this endpoint records the requested version; it does not itself install the tool);\n- detect Python, Node.js, Java, Go and Rust in `PATH`;\n- optionally install the selected tool via `winget` after an explicit confirmation (this step needs network access and an available Windows App Installer);
 - run diagnostics for the packaged server, writable data directory, port availability and HTTP health;
 - show server stdout/stderr and API responses.
 
@@ -34,4 +34,4 @@ The installer is written to `artifacts/HOST-KT200-Setup-win-x64.exe`.
 
 GitHub Actions builds both .NET projects, starts the published server in a temporary data directory, checks `/status`, `/tools`, `/config` and `/activate`, then packages the installer. The installer is uploaded as a workflow artifact.
 
-The first CI run is the authoritative build/runtime verification. This development environment does not have the .NET SDK installed, so the Windows build and smoke tests cannot be honestly reported as passed until that workflow completes.
+GitHub Actions builds the desktop app and both existing server projects, runs API smoke tests for LocalHost (including rejection of unsupported tools and path traversal), and packages the desktop app plus LocalHost server. The KT200 protocol server is build-checked but intentionally not bundled or invoked by this automation. The installer artifact is available only after a fully successful workflow.
