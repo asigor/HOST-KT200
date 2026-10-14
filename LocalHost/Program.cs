@@ -173,16 +173,43 @@ namespace LocalHost
 
         static string HandleActivation(string path)
         {
-            var uri = new Uri("http://localhost" + path);
-            var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
-            string tool = query["tool"];
-            string version = query["version"] ?? "latest";
+            try
+            {
+                int queryIndex = path.IndexOf('?');
+                string queryString = queryIndex >= 0 ? path.Substring(queryIndex + 1) : "";
+                var query = ParseQueryString(queryString);
+                query.TryGetValue("tool", out string tool);
+                query.TryGetValue("version", out string version);
 
-            if (string.IsNullOrEmpty(tool))
-                return JsonError("Tool name required");
+                if (string.IsNullOrWhiteSpace(tool))
+                    return JsonError("Tool name required");
 
-            _activeTools[tool] = version;
-            return JsonSuccess($"Tool '{tool}' v{version} activated");
+                string[] availableTools = { "python", "nodejs", "java", "go", "rust" };
+                if (!availableTools.Contains(tool, StringComparer.OrdinalIgnoreCase))
+                    return JsonError("Unsupported tool");
+
+                tool = tool.ToLowerInvariant();
+                version = string.IsNullOrWhiteSpace(version) ? "latest" : version.Trim();
+                _activeTools[tool] = version;
+                return JsonSuccess($"Tool '{tool}' v{version} activated");
+            }
+            catch (UriFormatException)
+            {
+                return JsonError("Invalid URL encoding");
+            }
+        }
+
+        static Dictionary<string, string> ParseQueryString(string queryString)
+        {
+            var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string item in queryString.Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] pair = item.Split('=', 2);
+                string key = Uri.UnescapeDataString(pair[0].Replace("+", " "));
+                string value = pair.Length > 1 ? Uri.UnescapeDataString(pair[1].Replace("+", " ")) : "";
+                values[key] = value;
+            }
+            return values;
         }
 
         static string GetConfig()
@@ -217,21 +244,32 @@ namespace LocalHost
 
         static string GetFileContent(string filePath)
         {
-            if (!filePath.StartsWith(_rootPath))
-                return JsonError("Access denied");
-            
-            if (File.Exists(filePath))
+            try
             {
-                try
-                {
-                    return File.ReadAllText(filePath);
-                }
-                catch
-                {
-                    return JsonError("Cannot read file");
-                }
+                string root = Path.GetFullPath(_rootPath)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                string fullPath = Path.GetFullPath(filePath);
+                string allowedPrefix = root + Path.DirectorySeparatorChar;
+                if (!fullPath.StartsWith(allowedPrefix, StringComparison.OrdinalIgnoreCase))
+                    return JsonError("Access denied");
+
+                if (!File.Exists(fullPath))
+                    return JsonError("File not found");
+
+                return File.ReadAllText(fullPath);
             }
-            return JsonError("File not found");
+            catch (UnauthorizedAccessException)
+            {
+                return JsonError("Access denied");
+            }
+            catch (IOException)
+            {
+                return JsonError("Cannot read file");
+            }
+            catch (ArgumentException)
+            {
+                return JsonError("Invalid file path");
+            }
         }
 
         static string GetLogs()
