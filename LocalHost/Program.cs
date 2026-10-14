@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text;
 
 namespace LocalHost
 {
@@ -308,7 +309,7 @@ namespace LocalHost
         {
             return $"HTTP/1.1 200 OK\r\n" +
                    $"Content-Type: {contentType}; charset=utf-8\r\n" +
-                   $"Content-Length: {body.Length}\r\n" +
+                   $"Content-Length: {Encoding.UTF8.GetByteCount(body)}\r\n" +
                    $"Connection: close\r\n" +
                    $"\r\n" +
                    body;
