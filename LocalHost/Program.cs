@@ -138,6 +138,8 @@ namespace LocalHost
                 return GetActiveTools();
             else if (path.StartsWith("activate"))
                 return HandleActivation(path);
+            else if (path.StartsWith("deactivate"))
+                return HandleDeactivation(path);
             else if (path == "config")
                 return GetConfig();
             else if (path == "files" || path == "")
@@ -196,6 +198,34 @@ namespace LocalHost
                 version = string.IsNullOrWhiteSpace(version) ? "latest" : version.Trim();
                 _activeTools[tool] = version;
                 return JsonSuccess($"Tool '{tool}' v{version} activated");
+            }
+            catch (UriFormatException)
+            {
+                return JsonError("Invalid URL encoding");
+            }
+        }
+
+        static string HandleDeactivation(string path)
+        {
+            try
+            {
+                int queryIndex = path.IndexOf('?');
+                string queryString = queryIndex >= 0 ? path.Substring(queryIndex + 1) : "";
+                var query = ParseQueryString(queryString);
+                query.TryGetValue("tool", out string? tool);
+
+                if (string.IsNullOrWhiteSpace(tool))
+                    return JsonError("Tool name required");
+
+                tool = tool.Trim().ToLowerInvariant();
+                string[] availableTools = { "python", "nodejs", "java", "go", "rust" };
+                if (!availableTools.Contains(tool, StringComparer.OrdinalIgnoreCase))
+                    return JsonError("Unsupported tool");
+
+                if (!_activeTools.Remove(tool))
+                    return JsonError("Tool is not active");
+
+                return JsonSuccess($"Tool '{tool}' deactivated");
             }
             catch (UriFormatException)
             {
