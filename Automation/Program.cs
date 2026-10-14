@@ -59,6 +59,8 @@ internal sealed class DashboardForm : Form
         toolsRow.Controls.Add(new Label { Text = "Wersja:", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
         toolsRow.Controls.Add(_version);
         toolsRow.Controls.Add(MakeButton("Aktywuj", async (_, _) => await ActivateToolAsync()));
+        toolsRow.Controls.Add(MakeButton("Dezaktywuj", async (_, _) => await DeactivateToolAsync()));
+        toolsRow.Controls.Add(MakeButton("Lista narzędzi", async (_, _) => await ReadEndpointAsync("/tools", "Narzędzia")));
         toolsRow.Controls.Add(MakeButton("Sprawdź narzędzie", async (_, _) => await CheckSelectedToolAsync()));
         toolsRow.Controls.Add(MakeButton("Zainstaluj przez winget", async (_, _) => await InstallSelectedToolAsync()));
         toolsRow.Controls.Add(MakeButton("Konfiguracja", async (_, _) => await ReadEndpointAsync("/config", "Konfiguracja")));
@@ -222,6 +224,26 @@ internal sealed class DashboardForm : Form
             ["go"] = ("go", "GoLang.Go", ["version"]),
             ["rust"] = ("rustc", "Rustlang.Rustup", ["--version"])
         };
+
+    private async Task DeactivateToolAsync()
+    {
+        if (_tool.SelectedItem is not string tool)
+            return;
+        if (!await IsServerRespondingAsync())
+        {
+            Log("Najpierw uruchom serwer.");
+            return;
+        }
+        try
+        {
+            var url = $"{ServerUrl}/deactivate?tool={Uri.EscapeDataString(tool)}";
+            using var response = await _http.GetAsync(url);
+            var body = await response.Content.ReadAsStringAsync();
+            response.EnsureSuccessStatusCode();
+            Log($"Dezaktywacja {tool}: {body.Replace(Environment.NewLine, " ")}");
+        }
+        catch (Exception ex) { Log("Dezaktywacja nie powiodła się: " + ex.Message); }
+    }
 
     private async Task CheckSelectedToolAsync()
     {
