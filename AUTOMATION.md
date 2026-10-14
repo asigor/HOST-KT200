@@ -7,7 +7,7 @@ This adds a Windows desktop control panel without replacing the existing `LocalH
 The panel can:
 - start and stop the packaged `LocalHost` process;
 - select a port and check the HTTP `/status` endpoint;
-- activate a supported tool in the LocalHost registry through `/activate?tool=...&version=...` (this endpoint records the requested version; it does not itself install the tool);\n- detect Python, Node.js, Java, Go and Rust in `PATH`;\n- optionally install the selected tool via `winget` after an explicit confirmation (this step needs network access and an available Windows App Installer);
+- activate/deactivate supported tools in the LocalHost registry and inspect `/tools` (activation records a version; it does not itself install the tool);\n- detect Python, Node.js, Java, Go and Rust in `PATH`;\n- optionally install the selected tool via `winget` after an explicit confirmation (this step needs network access and an available Windows App Installer);
 - run diagnostics for the packaged server, writable data directory, port availability and HTTP health;
 - show server stdout/stderr and API responses.
 
