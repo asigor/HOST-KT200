@@ -59,6 +59,8 @@ internal sealed class DashboardForm : Form
         toolsRow.Controls.Add(new Label { Text = "Wersja:", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
         toolsRow.Controls.Add(_version);
         toolsRow.Controls.Add(MakeButton("Aktywuj", async (_, _) => await ActivateToolAsync()));
+        toolsRow.Controls.Add(MakeButton("Sprawdź narzędzie", async (_, _) => await CheckSelectedToolAsync()));
+        toolsRow.Controls.Add(MakeButton("Zainstaluj przez winget", async (_, _) => await InstallSelectedToolAsync()));
         toolsRow.Controls.Add(MakeButton("Konfiguracja", async (_, _) => await ReadEndpointAsync("/config", "Konfiguracja")));
         toolsRow.Controls.Add(MakeButton("Logi", async (_, _) => await ReadEndpointAsync("/logs", "Indeks logów")));
         toolsRow.Controls.Add(MakeButton("Diagnostyka", async (_, _) => await RunDiagnosticsAsync()));
@@ -209,6 +211,120 @@ internal sealed class DashboardForm : Form
         if (await IsServerRespondingAsync()) { Log("HTTP /status: odpowiedź OK."); await RefreshStatusAsync(); }
         else Log("HTTP /status: brak odpowiedzi. Sprawdź port, proces serwera i zaporę.");
         Log("=== Koniec diagnostyki ===");
+    }
+
+    private static readonly IReadOnlyDictionary<string, (string Executable, string PackageId)> ToolCatalog =
+        new Dictionary<string, (string Executable, string PackageId)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["python"] = ("python", "Python.Python.3.12"),
+            ["nodejs"] = ("node", "OpenJS.NodeJS.LTS"),
+            ["java"] = ("java", "EclipseAdoptium.Temurin.21.JDK"),
+            ["go"] = ("go", "GoLang.Go"),
+            ["rust"] = ("rustc", "Rustlang.Rustup")
+        };
+
+    private async Task CheckSelectedToolAsync()
+    {
+        if (_tool.SelectedItem is not string tool || !ToolCatalog.TryGetValue(tool, out var definition))
+            return;
+
+        try
+        {
+            var start = new ProcessStartInfo(definition.Executable)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            start.ArgumentList.Add("--version");
+            using var process = Process.Start(start);
+            if (process is null)
+            {
+                Log($"Nie udało się sprawdzić {tool}.");
+                return;
+            }
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try { await process.WaitForExitAsync(timeout.Token); }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { }
+                Log($"Kontrola {tool} przekroczyła limit 10 sekund.");
+                return;
+            }
+            var output = (await stdoutTask + " " + await stderrTask).Trim();
+            if (process.ExitCode == 0)
+                Log($"{tool} jest zainstalowany: {output}");
+            else
+                Log($"{tool} zwrócił kod {process.ExitCode}: {output}");
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            Log($"{tool} nie został znaleziony w PATH. Możesz spróbować instalacji przez winget.");
+        }
+        catch (Exception ex) { Log($"Kontrola {tool} nie powiodła się: {ex.Message}"); }
+    }
+
+    private async Task InstallSelectedToolAsync()
+    {
+        if (_tool.SelectedItem is not string tool || !ToolCatalog.TryGetValue(tool, out var definition))
+            return;
+
+        var answer = MessageBox.Show(
+            $"Zainstalować {tool} ({definition.PackageId}) za pomocą Windows Package Manager (winget)?\\n\\nWymagane jest połączenie z repozytorium pakietów. Instalator może zmienić środowisko systemowe.",
+            "Potwierdź instalację narzędzia",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+        if (answer != DialogResult.Yes)
+        {
+            Log($"Anulowano instalację {tool}.");
+            return;
+        }
+
+        try
+        {
+            Log($"Rozpoczynam instalację {tool} przez winget...");
+            var start = new ProcessStartInfo("winget.exe")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            foreach (var argument in new[]
+            {
+                "install", "--id", definition.PackageId, "--exact", "--silent",
+                "--disable-interactivity", "--accept-package-agreements", "--accept-source-agreements"
+            })
+                start.ArgumentList.Add(argument);
+
+            using var process = Process.Start(start);
+            if (process is null)
+            {
+                Log("Nie udało się uruchomić winget.");
+                return;
+            }
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+            var output = (await stdoutTask + Environment.NewLine + await stderrTask).Trim();
+            if (!string.IsNullOrWhiteSpace(output))
+                Log(output);
+            if (process.ExitCode == 0)
+            {
+                Log($"winget zakończył instalację {tool} powodzeniem. Sprawdzam wersję...");
+                await CheckSelectedToolAsync();
+            }
+            else
+                Log($"Instalacja {tool} nie powiodła się (kod {process.ExitCode}). Sprawdź dostępność winget, sieć i logi instalatora.");
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            Log($"Nie znaleziono winget.exe lub nie można go uruchomić: {ex.Message}. Zainstaluj/napraw App Installer w Windows.");
+        }
+        catch (Exception ex) { Log($"Instalacja {tool} nie powiodła się: {ex.Message}"); }
     }
 
     private async Task ReadEndpointAsync(string endpoint, string label)
