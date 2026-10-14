@@ -35,6 +35,9 @@ jobs:
       - name: Build existing LocalHost server
         run: dotnet build LocalHost/LocalHost.csproj --configuration Release
 
+      - name: Build existing KT200 server without packaging it
+        run: dotnet build HOST-Server/HOST-Server.csproj --configuration Release
+
       - name: Publish desktop application (self-contained)
         run: dotnet publish Automation/HOST-KT200.Automation.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/payload/app
 
