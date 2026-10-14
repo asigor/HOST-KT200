@@ -7,6 +7,10 @@ on:
       - feature/programmer-tool-activator
   workflow_dispatch:
 
+concurrency:
+  group: windows-installer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
