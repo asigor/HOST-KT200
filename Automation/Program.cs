@@ -24,7 +24,7 @@ internal sealed class DashboardForm : Form
     private readonly ComboBox _tool = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
     private readonly TextBox _version = new() { Text = "latest", Width = 100 };
     private Process? _server;
-    private readonly string _dataRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HOST-KT200");
+    private readonly string _dataRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".localhost");
 
     public DashboardForm()
     {
