@@ -274,7 +274,7 @@ internal sealed class DashboardForm : Form
             return;
 
         var answer = MessageBox.Show(
-            $"Zainstalować {tool} ({definition.PackageId}) za pomocą Windows Package Manager (winget)?\\n\\nWymagane jest połączenie z repozytorium pakietów. Instalator może zmienić środowisko systemowe.",
+            $"Zainstalować {tool} ({definition.PackageId}) za pomocą Windows Package Manager (winget)?\n\nWymagane jest połączenie z repozytorium pakietów. Instalator może zmienić środowisko systemowe.",
             "Potwierdź instalację narzędzia",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning);
