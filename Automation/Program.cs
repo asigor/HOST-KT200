@@ -59,6 +59,8 @@ internal sealed class DashboardForm : Form
         toolsRow.Controls.Add(new Label { Text = "Wersja:", AutoSize = true, Padding = new Padding(0, 8, 0, 0) });
         toolsRow.Controls.Add(_version);
         toolsRow.Controls.Add(MakeButton("Aktywuj", async (_, _) => await ActivateToolAsync()));
+        toolsRow.Controls.Add(MakeButton("Konfiguracja", async (_, _) => await ReadEndpointAsync("/config", "Konfiguracja")));
+        toolsRow.Controls.Add(MakeButton("Logi", async (_, _) => await ReadEndpointAsync("/logs", "Indeks logów")));
         toolsRow.Controls.Add(MakeButton("Diagnostyka", async (_, _) => await RunDiagnosticsAsync()));
         layout.Controls.Add(toolsRow, 0, 2);
 
@@ -207,6 +209,18 @@ internal sealed class DashboardForm : Form
         if (await IsServerRespondingAsync()) { Log("HTTP /status: odpowiedź OK."); await RefreshStatusAsync(); }
         else Log("HTTP /status: brak odpowiedzi. Sprawdź port, proces serwera i zaporę.");
         Log("=== Koniec diagnostyki ===");
+    }
+
+    private async Task ReadEndpointAsync(string endpoint, string label)
+    {
+        try
+        {
+            using var response = await _http.GetAsync(ServerUrl + endpoint);
+            var body = await response.Content.ReadAsStringAsync();
+            response.EnsureSuccessStatusCode();
+            Log(label + ": " + body.Replace(Environment.NewLine, " "));
+        }
+        catch (Exception ex) { Log(label + " — błąd odczytu: " + ex.Message); }
     }
 
     private async Task<bool> IsServerRespondingAsync()
