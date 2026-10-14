@@ -43,7 +43,7 @@ namespace LocalHost
             Console.WriteLine("  /config       - Show configuration");
             Console.WriteLine("  /files        - Browse files");
             Console.WriteLine("\nPress Ctrl+C to stop...");
-            Console.WriteLine("═" * 40);
+            Console.WriteLine(new string('═', 40));
             Console.WriteLine();
 
             _listener.Start();
