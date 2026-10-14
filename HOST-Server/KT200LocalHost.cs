@@ -21,7 +21,7 @@ namespace HostKT200
     {
         private int _port = 8080;
         private string _rootPath;
-        private TcpListener _listener;
+        private TcpListener _listener = null!;
         private bool _isRunning = false;
         private Dictionary<string, SessionData> _sessions = new();
         private ActivationConfig _config;
@@ -80,11 +80,14 @@ namespace HostKT200
             {
                 try
                 {
-                    string request = await reader.ReadLineAsync();
-                    if (string.IsNullOrEmpty(request))
+                    string? request = await reader.ReadLineAsync();
+                    if (string.IsNullOrWhiteSpace(request))
                         return;
 
-                    string[] parts = request.Split(' ');
+                    string[] parts = request.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length < 2)
+                        return;
+
                     string method = parts[0];
                     string path = parts[1];
 
@@ -317,7 +320,7 @@ namespace HostKT200
 
     public class SessionData
     {
-        public string SessionId { get; set; }
+        public string SessionId { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public bool IsActive { get; set; }
     }
