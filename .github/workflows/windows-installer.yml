@@ -67,7 +67,20 @@ jobs:
             if ($config.mode -ne "offline") { throw "Config endpoint did not return offline mode." }
             $activation = Invoke-RestMethod "http://127.0.0.1:$port/activate?tool=python&version=3.12" -TimeoutSec 3
             if ($activation.success -ne $true) { throw "Activation endpoint failed: $($activation | ConvertTo-Json -Compress)" }
-            Write-Host "PASS: /status, /tools, /config and /activate"
+            $unknown = Invoke-RestMethod "http://127.0.0.1:$port/activate?tool=not-a-real-tool" -TimeoutSec 3
+            if ($unknown.error -ne $true) { throw "Unsupported tool was not rejected: $($unknown | ConvertTo-Json -Compress)" }
+
+            $secretPath = Join-Path $env:RUNNER_TEMP "host-kt200-secret.txt"
+            Set-Content -Path $secretPath -Value "DO_NOT_EXPOSE" -NoNewline
+            try {
+              $traversalResponse = & curl.exe --silent --show-error --path-as-is "http://127.0.0.1:$port/../host-kt200-secret.txt"
+              $traversal = $traversalResponse | ConvertFrom-Json
+              if ($traversal.error -ne $true) { throw "Path traversal was not rejected: $traversalResponse" }
+            }
+            finally {
+              Remove-Item $secretPath -Force -ErrorAction SilentlyContinue
+            }
+            Write-Host "PASS: /status, /tools, /config, /activate validation and path traversal rejection"
           }
           finally {
             if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
