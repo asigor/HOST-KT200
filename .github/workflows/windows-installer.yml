@@ -44,6 +44,12 @@ jobs:
       - name: Publish server (self-contained)
         run: dotnet publish LocalHost/LocalHost.csproj --configuration Release --runtime win-x64 --self-contained true -p:UseAppHost=true -o artifacts/payload/server
 
+      - name: Download and verify official offline runtime installers
+        shell: pwsh
+        run: |
+          ./installer/Download-Runtimes.ps1 -Destination artifacts/payload/installers
+          if ($LASTEXITCODE -ne 0) { throw "Runtime download failed." }
+
       - name: Smoke-test LocalHost API
         shell: pwsh
         run: |
