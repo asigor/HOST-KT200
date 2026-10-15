@@ -50,7 +50,7 @@ Save-SignedInstaller -Uri $javaUri -Path (Join-Path $Destination "java-installer
 
 # Go: latest stable Windows amd64 MSI from go.dev.
 $goEntries = Invoke-RestMethod -Uri "https://go.dev/dl/?mode=json"
-$go = $goEntries | Where-Object { $_.stable -and $_.files | Where-Object { $_.os -eq "windows" -and $_.arch -eq "amd64" -and $_.kind -eq "msi" } } | Select-Object -First 1
+$go = $goEntries | Where-Object { $_.stable } | Where-Object { @($_.files | Where-Object { $_.os -eq "windows" -and $_.arch -eq "amd64" -and $_.kind -eq "msi" }).Count -gt 0 } | Select-Object -First 1
 if (-not $go) { throw "Could not find a stable Go Windows amd64 MSI." }
 $goFile = $go.files | Where-Object { $_.os -eq "windows" -and $_.arch -eq "amd64" -and $_.kind -eq "msi" } | Select-Object -First 1
 $goUri = "https://go.dev/dl/$($goFile.filename)"
