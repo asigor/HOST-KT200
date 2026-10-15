@@ -249,6 +249,47 @@ internal sealed class DashboardForm : Form
         catch (Exception ex) { Log("Dezaktywacja nie powiodła się: " + ex.Message); }
     }
 
+    private static string ResolveToolExecutable(string tool, string fallback)
+    {
+        var candidates = new List<string>();
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        switch (tool)
+        {
+            case "python":
+                if (Directory.Exists(programFiles))
+                    candidates.AddRange(Directory.GetDirectories(programFiles, "Python*")
+                        .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                        .Select(path => Path.Combine(path, "python.exe")));
+                var localPython = Path.Combine(localAppData, "Programs", "Python");
+                if (Directory.Exists(localPython))
+                    candidates.AddRange(Directory.GetDirectories(localPython, "Python*")
+                        .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                        .Select(path => Path.Combine(path, "python.exe")));
+                break;
+            case "nodejs":
+                candidates.Add(Path.Combine(programFiles, "nodejs", "node.exe"));
+                break;
+            case "java":
+                var javaRoot = Path.Combine(programFiles, "Eclipse Adoptium");
+                if (Directory.Exists(javaRoot))
+                    candidates.AddRange(Directory.GetDirectories(javaRoot, "jdk-*")
+                        .OrderByDescending(path => path, StringComparer.OrdinalIgnoreCase)
+                        .Select(path => Path.Combine(path, "bin", "java.exe")));
+                break;
+            case "go":
+                candidates.Add(Path.Combine(programFiles, "Go", "bin", "go.exe"));
+                break;
+            case "rust":
+                candidates.Add(Path.Combine(userProfile, ".cargo", "bin", "rustc.exe"));
+                break;
+        }
+
+        return candidates.FirstOrDefault(File.Exists) ?? fallback;
+    }
+
     private async Task CheckSelectedToolAsync()
     {
         if (_tool.SelectedItem is not string tool || !ToolCatalog.TryGetValue(tool, out var definition))
@@ -256,7 +297,7 @@ internal sealed class DashboardForm : Form
 
         try
         {
-            var start = new ProcessStartInfo(definition.Executable)
+            var start = new ProcessStartInfo(ResolveToolExecutable(tool, definition.Executable))
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
