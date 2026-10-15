@@ -23,6 +23,7 @@ internal sealed class DashboardForm : Form
     private readonly NumericUpDown _port = new() { Minimum = 1024, Maximum = 65535, Value = 8080, Width = 100 };
     private readonly ComboBox _tool = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
     private readonly TextBox _version = new() { Text = "latest", Width = 100 };
+    private string? _kt200Executable;
     private Process? _server;
     private readonly string _dataRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".localhost");
 
@@ -51,6 +52,8 @@ internal sealed class DashboardForm : Form
         serverRow.Controls.Add(MakeButton("Zatrzymaj", (_, _) => StopServer()));
         serverRow.Controls.Add(MakeButton("Sprawdź status", async (_, _) => await RefreshStatusAsync()));
         serverRow.Controls.Add(MakeButton("Otwórz panel HTTP", (_, _) => OpenServer()));
+        serverRow.Controls.Add(MakeButton("Wybierz aplikację KT200", (_, _) => SelectKt200Executable()));
+        serverRow.Controls.Add(MakeButton("Uruchom aplikację KT200", async (_, _) => await LaunchKt200Async()));
         layout.Controls.Add(serverRow, 0, 1);
 
         var toolsRow = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, WrapContents = true, Padding = new Padding(0, 4, 0, 8) };
@@ -76,6 +79,7 @@ internal sealed class DashboardForm : Form
         layout.Controls.Add(footer, 0, 4);
         Controls.Add(layout);
         FormClosing += (_, _) => { StopServer(); _http.Dispose(); };
+        LoadLauncherSettings();
         Log("Gotowe. Uruchom diagnostykę, aby sprawdzić środowisko.");
     }
 
@@ -366,6 +370,83 @@ internal sealed class DashboardForm : Form
     {
         try { using var response = await _http.GetAsync(ServerUrl + "/status"); return response.IsSuccessStatusCode; }
         catch { return false; }
+    }
+
+    private string LauncherSettingsPath => Path.Combine(_dataRoot, "launcher.json");
+
+    private void LoadLauncherSettings()
+    {
+        try
+        {
+            if (!File.Exists(LauncherSettingsPath)) return;
+            using var document = JsonDocument.Parse(File.ReadAllText(LauncherSettingsPath));
+            if (document.RootElement.TryGetProperty("kt200Executable", out var path))
+            {
+                var candidate = path.GetString();
+                if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+                {
+                    _kt200Executable = candidate;
+                    Log("Zapisana ścieżka aplikacji KT200: " + candidate);
+                }
+            }
+        }
+        catch (Exception ex) { Log("Nie udało się odczytać ustawień launchera: " + ex.Message); }
+    }
+
+    private void SelectKt200Executable()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = "Wskaż legalnie zainstalowaną aplikację KT200",
+            Filter = "Pliki aplikacji (*.exe)|*.exe|Wszystkie pliki (*.*)|*.*",
+            CheckFileExists = true,
+            Multiselect = false
+        };
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        _kt200Executable = dialog.FileName;
+        try
+        {
+            Directory.CreateDirectory(_dataRoot);
+            File.WriteAllText(LauncherSettingsPath, JsonSerializer.Serialize(
+                new { kt200Executable = _kt200Executable },
+                new JsonSerializerOptions { WriteIndented = true }));
+            Log("Zapisano ścieżkę aplikacji KT200: " + _kt200Executable);
+        }
+        catch (Exception ex) { Log("Nie udało się zapisać ustawień launchera: " + ex.Message); }
+    }
+
+    private async Task LaunchKt200Async()
+    {
+        if (string.IsNullOrWhiteSpace(_kt200Executable) || !File.Exists(_kt200Executable))
+        {
+            Log("Najpierw wybierz plik EXE aplikacji KT200.");
+            SelectKt200Executable();
+            if (string.IsNullOrWhiteSpace(_kt200Executable) || !File.Exists(_kt200Executable)) return;
+        }
+
+        // Start the local management server as a convenience only. Do not rewrite DNS,
+        // hosts, proxy settings, TLS, or the target application's licensing endpoints.
+        if (!await IsServerRespondingAsync())
+        {
+            await StartServerAsync();
+            if (!await IsServerRespondingAsync())
+            {
+                Log("Aplikacja KT200 nie została uruchomiona, ponieważ lokalny serwer nie jest gotowy.");
+                return;
+            }
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo(_kt200Executable)
+            {
+                UseShellExecute = true,
+                WorkingDirectory = Path.GetDirectoryName(_kt200Executable)!
+            });
+            Log("Uruchomiono aplikację KT200. Jej ruch sieciowy i weryfikacja licencji pozostają bez zmian.");
+        }
+        catch (Exception ex) { Log("Nie udało się uruchomić aplikacji KT200: " + ex.Message); }
     }
 
     private void OpenServer()
