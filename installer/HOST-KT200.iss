@@ -45,6 +45,6 @@ Name: "desktopicon"; Description: "Utwórz skrót na pulpicie"; GroupDescription
 [Run]
 Filename: "{tmp}\python-installer.exe"; Parameters: "/quiet InstallAllUsers=1 PrependPath=1 Include_test=0"; StatusMsg: "Instalowanie Python..."; Components: python; Flags: runhidden waituntilterminated
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\node-installer.msi"" /qn /norestart"; StatusMsg: "Instalowanie Node.js..."; Components: node; Flags: runhidden waituntilterminated
-Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\java-installer.msi"" /qn /norestart"; StatusMsg: "Instalowanie Java JDK..."; Components: java; Flags: runhidden waituntilterminated
+Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\java-installer.msi"" /qn /norestart ADDLOCAL=FeatureMain,FeatureEnvironment,FeatureJarFileRunWith,FeatureJavaHome"; StatusMsg: "Instalowanie Java JDK..."; Components: java; Flags: runhidden waituntilterminated
 Filename: "msiexec.exe"; Parameters: "/i ""{tmp}\go-installer.msi"" /qn /norestart"; StatusMsg: "Instalowanie Go..."; Components: go; Flags: runhidden waituntilterminated
 Filename: "{app}\{#AppExeName}"; Description: "Uruchom HOST-KT200 Automation"; Flags: postinstall nowait skipifsilent
