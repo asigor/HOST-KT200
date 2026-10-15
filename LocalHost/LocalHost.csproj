@@ -7,7 +7,4 @@
     <StartupObject>LocalHost.Program</StartupObject>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Web" Version="4.0.0" />
-  </ItemGroup>
 </Project>
