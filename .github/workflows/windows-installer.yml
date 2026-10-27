@@ -47,8 +47,37 @@ jobs:
       - name: Download and verify official offline runtime installers
         shell: pwsh
         run: |
-          ./installer/Download-Runtimes.ps1 -Destination artifacts/payload/installers
-          if ($LASTEXITCODE -ne 0) { throw "Runtime download failed." }
+          $ErrorActionPreference = 'Stop'
+          $destination = 'artifacts/payload/installers'
+
+          try {
+            & ./installer/Download-Runtimes.ps1 -Destination $destination
+
+            $expectedFiles = @(
+              (Join-Path $destination 'python-installer.exe'),
+              (Join-Path $destination 'node-installer.msi'),
+              (Join-Path $destination 'java-installer.msi'),
+              (Join-Path $destination 'go-installer.msi'),
+              (Join-Path $destination 'VERSIONS.txt')
+            )
+            $missingFiles = @($expectedFiles | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
+            if ($missingFiles.Count -gt 0) {
+              throw "Runtime download script completed without expected files: $($missingFiles -join ', ')"
+            }
+
+            $versions = Get-Content -LiteralPath (Join-Path $destination 'VERSIONS.txt') -Raw
+            foreach ($runtime in @('Python=', 'Node.js=', 'Java=', 'Go=')) {
+              if ($versions -notmatch "(?m)^$([regex]::Escape($runtime)).+\S") {
+                throw "VERSIONS.txt is missing a populated version entry for $runtime"
+              }
+            }
+
+            Write-Host 'All runtime installers are present, signed, and ready for packaging.'
+          }
+          catch {
+            Write-Host "::error::Runtime download/verification failed: $($_.Exception.Message)"
+            throw
+          }
 
       - name: Smoke-test LocalHost API
         shell: pwsh
