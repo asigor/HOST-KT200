@@ -53,18 +53,51 @@ $javaUri = "https://api.adoptium.net/v3/installer/latest/21/ga/windows/x64/jdk/h
 Save-SignedInstaller -Uri $javaUri -Path (Join-Path $Destination "java-installer.msi") -NamePattern "Eclipse Temurin JDK 21 LTS" -ExpectedPublisher "Eclipse Foundation"
 
 # Go: latest stable Windows amd64 MSI from go.dev.
-$goEntries = Invoke-RestMethod -Uri "https://go.dev/dl/?mode=json"
-$go = $goEntries | Where-Object { $_.stable } | Where-Object { @($_.files | Where-Object { $_.os -eq "windows" -and $_.arch -eq "amd64" -and $_.kind -eq "installer" }).Count -gt 0 } | Select-Object -First 1
-if (-not $go) { throw "Could not find a stable Go Windows amd64 MSI." }
-$goFile = $go.files | Where-Object { $_.os -eq "windows" -and $_.arch -eq "amd64" -and $_.kind -eq "installer" } | Select-Object -First 1
-$goUri = "https://go.dev/dl/$($goFile.filename)"
-Save-SignedInstaller -Uri $goUri -Path (Join-Path $Destination "go-installer.msi") -NamePattern "$($go.version)" -ExpectedPublisher "Go Authors|Google LLC"
-Write-Host "Bundled Go version: $($go.version)"
+Write-Host "Fetching stable Go release metadata..."
 
-@"
-Python=$pythonVersion
-Node.js=$($node.version)
-Java=Temurin JDK 21 LTS (latest at build time)
-Go=$($go.version)
-Rust=not bundled (official rustup requires downloading toolchain components)
-"@ | Set-Content -Path (Join-Path $Destination "VERSIONS.txt") -Encoding utf8
+$goEntries = Invoke-RestMethod -Uri "https://go.dev/dl/?mode=json"
+
+$go = $goEntries |
+    Where-Object { $_.stable } |
+    Where-Object {
+        @($_.files | Where-Object {
+            $_.os -eq "windows" -and
+            $_.arch -eq "amd64" -and
+            $_.kind -eq "installer" -and
+            $_.filename -like "*.msi"
+        }).Count -gt 0
+    } |
+    Select-Object -First 1
+
+if (-not $go) {
+    throw "Could not find a stable Go Windows amd64 MSI."
+}
+
+$goFile = $go.files |
+    Where-Object {
+        $_.os -eq "windows" -and
+        $_.arch -eq "amd64" -and
+        $_.kind -eq "installer" -and
+        $_.filename -like "*.msi"
+    } |
+    Select-Object -First 1
+
+if (-not $goFile) {
+    throw "Go MSI metadata was found, but no matching installer file was selected."
+}
+
+$goUri = "https://go.dev/dl/$($goFile.filename)"
+$goPath = Join-Path $Destination "go-installer.msi"
+
+Write-Host "Selected Go version: $($go.version)"
+Write-Host "Selected Go installer: $($goFile.filename)"
+Write-Host "Go download URL: $goUri"
+Write-Host "Go installer destination: $goPath"
+
+Save-SignedInstaller `
+    -Uri $goUri `
+    -Path $goPath `
+    -NamePattern "$($go.version)" `
+    -ExpectedPublisher "Go Authors|Google LLC"
+
+Write-Host "Go installer downloaded and verified successfully."
