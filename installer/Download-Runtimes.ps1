@@ -101,3 +101,17 @@ Save-SignedInstaller `
     -ExpectedPublisher "Go Authors|Google LLC"
 
 Write-Host "Go installer downloaded and verified successfully."
+
+$versionsPath = Join-Path $Destination "VERSIONS.txt"
+@"
+Python=$pythonVersion
+Node.js=$($node.version)
+Java=Temurin JDK 21 LTS (latest at build time)
+Go=$($go.version)
+Rust=not bundled (official rustup requires downloading toolchain components)
+"@ | Set-Content -LiteralPath $versionsPath -Encoding utf8
+
+if (-not (Test-Path -LiteralPath $versionsPath -PathType Leaf)) {
+    throw "Failed to create runtime version manifest: $versionsPath"
+}
+Write-Host "Wrote runtime version manifest: $versionsPath"
